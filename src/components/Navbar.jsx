@@ -25,7 +25,7 @@ const Navbar = () => {
 
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <img src={logo} alt="APlusMedDepot logo" className="h-14 w-auto object-contain" />
+            {/* <img src={logo} alt="APlusMedDepot logo" className="h-14 w-auto object-contain" /> */}
             <span className="font-display text-2xl text-secondary">
               {/* APlusMed<span className="text-primary">Depot</span> */}
                <span className="text-primary">APlus</span><span className="text-lightblue">MedDepot</span>
