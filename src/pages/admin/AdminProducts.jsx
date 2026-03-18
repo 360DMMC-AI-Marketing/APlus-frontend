@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
-import { mockProducts } from '../../utils/mockData';
+import React, { useState, useEffect } from "react";
+import { Plus, Edit, Trash2, Search } from "lucide-react";
+import { getProducts } from "../../api/products";
 
 const AdminProducts = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const filteredProducts = mockProducts.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // ✅ Fetch from API
+  useEffect(() => {
+    getProducts()
+      .then((data) => {
+        setProducts(data.data || data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  if (loading) {
+    return <div className="p-10 text-center">Loading products...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -61,7 +78,10 @@ const AdminProducts = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={product.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <img
@@ -70,8 +90,12 @@ const AdminProducts = () => {
                         className="w-12 h-12 object-cover rounded-lg"
                       />
                       <div>
-                        <p className="font-semibold text-neutral">{product.name}</p>
-                        <p className="text-sm text-gray-500">ID: {product.id}</p>
+                        <p className="font-semibold text-neutral">
+                          {product.name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          ID: {product.id}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -81,14 +105,20 @@ const AdminProducts = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-semibold text-primary">${product.price}</span>
+                    <span className="font-semibold text-primary">
+                      ${product.price}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`font-semibold ${
-                      product.stock < 20 ? 'text-red-600' :
-                      product.stock < 50 ? 'text-yellow-600' :
-                      'text-green-600'
-                    }`}>
+                    <span
+                      className={`font-semibold ${
+                        product.stock < 20
+                          ? "text-red-600"
+                          : product.stock < 50
+                            ? "text-yellow-600"
+                            : "text-green-600"
+                      }`}
+                    >
                       {product.stock}
                     </span>
                   </td>
@@ -112,12 +142,16 @@ const AdminProducts = () => {
         </div>
       </div>
 
-      {/* Add Product Modal (Simple version) */}
+      {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="font-display text-2xl text-neutral mb-4">Add New Product</h2>
-            <p className="text-gray-600 mb-4">This is a demo. Full form would be implemented here.</p>
+            <h2 className="font-display text-2xl text-neutral mb-4">
+              Add New Product
+            </h2>
+            <p className="text-gray-600 mb-4">
+              This is a demo. Full form would be implemented here.
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -125,9 +159,7 @@ const AdminProducts = () => {
               >
                 Cancel
               </button>
-              <button className="flex-1 btn-medical">
-                Add Product
-              </button>
+              <button className="flex-1 btn-medical">Add Product</button>
             </div>
           </div>
         </div>
