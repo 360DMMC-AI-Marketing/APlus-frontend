@@ -34,6 +34,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminVendors from './pages/admin/AdminVendors';
+import AdminOrders from './pages/admin/AdminOrders';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 import AdminCompliance from './pages/admin/AdminCompliance'; // B-03 fix: was imported but never routed
 
@@ -295,6 +296,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
             <Route path="vendors" element={<AdminVendors />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="compliance" element={<AdminCompliance />} /> {/* B-03 fix: was missing */}

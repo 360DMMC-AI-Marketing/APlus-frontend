@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Eye, Filter } from 'lucide-react';
-import { mockOrders } from '../../utils/mockData';
+import { getAdminOrders } from '../../api/admin';
 
 const AdminOrders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const filteredOrders = mockOrders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    getAdminOrders()
+      .then((data) => {
+        const list = data.data || data;
+        setOrders(Array.isArray(list) ? list : []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredOrders = orders.filter(order => {
+    const orderId = order.order_number || order.id || '';
+    const matchesSearch = orderId.toString().toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -17,6 +30,7 @@ const AdminOrders = () => {
       case 'delivered':
         return 'bg-green-100 text-green-800';
       case 'in_transit':
+      case 'shipped':
         return 'bg-blue-100 text-blue-800';
       case 'processing':
         return 'bg-yellow-100 text-yellow-800';
@@ -24,6 +38,10 @@ const AdminOrders = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) {
+    return <div className="p-10 text-center">Loading orders...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -47,8 +65,9 @@ const AdminOrders = () => {
             className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
           >
             <option value="all">All Status</option>
+            <option value="pending">Pending</option>
             <option value="processing">Processing</option>
-            <option value="in_transit">In Transit</option>
+            <option value="shipped">Shipped</option>
             <option value="delivered">Delivered</option>
           </select>
         </div>
@@ -60,53 +79,35 @@ const AdminOrders = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Order ID
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Customer
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Items
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order ID</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-semibold text-neutral">{order.id}</span>
+                    <span className="font-mono font-semibold text-neutral">{order.order_number || order.id}</span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {new Date(order.date).toLocaleDateString()}
+                    {new Date(order.created_at || order.date).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-semibold text-neutral">{order.shippingAddress.name}</p>
-                      <p className="text-sm text-gray-500">{order.shippingAddress.company}</p>
+                      <p className="font-semibold text-neutral">{order.shipping_address?.name || order.shippingAddress?.name || '—'}</p>
+                      <p className="text-sm text-gray-500">{order.shipping_address?.company || order.shippingAddress?.company || ''}</p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {order.items.length} items
-                  </td>
                   <td className="px-6 py-4">
-                    <span className="font-semibold text-primary">${order.total.toFixed(2)}</span>
+                    <span className="font-semibold text-primary">${Number(order.total_amount || order.total || 0).toFixed(2)}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`badge-status ${getStatusColor(order.status)}`}>
-                      {order.status.replace('_', ' ')}
+                      {(order.status || '').replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -122,6 +123,10 @@ const AdminOrders = () => {
           </table>
         </div>
       </div>
+
+      {filteredOrders.length === 0 && (
+        <div className="text-center py-12 text-gray-500">No orders found</div>
+      )}
     </div>
   );
 };

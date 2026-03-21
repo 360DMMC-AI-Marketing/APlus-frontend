@@ -14,8 +14,7 @@ import {
   Star,
 } from "lucide-react";
 import { useCartStore } from "../store/cartStore";
-import { getPricing } from "./vendor/VendorProducts";
-import { getProducts } from "../api/products";
+import { getProductById } from "../api/products";
 
 // FDA badge color/label mapping
 const getFdaBadge = (fdaStatus) => {
@@ -60,11 +59,10 @@ const ProductDetailPage = () => {
   const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
-    getProducts()
+    getProductById(id)
       .then((data) => {
-        const list = data.data || data;
-        const found = list.find((p) => String(p.id) === String(id));
-        setProduct(found);
+        const product = data.data || data;
+        setProduct(product);
       })
       .catch((err) => {
         console.error(err);
@@ -102,8 +100,11 @@ const ProductDetailPage = () => {
       rating: 4.8,
       isPrimary: true,
     },
-    ...(product.otherSuppliers || []).map((s) => ({ ...s, isPrimary: false })),
-  ].sort((a, b) => a.price - b.price);
+    ...(product.otherSuppliers || []).map((s) => ({
+      ...s,
+      isPrimary: false,
+    })),
+  ].sort((a, b) => (a.price || 0) - (b.price || 0));
 
   const activeSupplier = selectedSupplierId
     ? allSuppliers.find((s) => s.supplierId === selectedSupplierId) ||
@@ -113,10 +114,14 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     addItem(
       {
-        ...product,
-        price: activeSupplier.price,
-        supplier: activeSupplier.supplier,
-        supplierId: activeSupplier.supplierId,
+        id: product.id,
+        name: product.name || '',
+        price: Number(activeSupplier.price) || 0,
+        stock: activeSupplier.stock ?? product.stock ?? 0,
+        supplier: activeSupplier.supplier || '',
+        supplierId: activeSupplier.supplierId || '',
+        image: product.image || '/placeholder.svg',
+        category: product.category || '',
       },
       quantity,
     );
@@ -124,8 +129,9 @@ const ProductDetailPage = () => {
   };
 
   const incrementQuantity = () => {
-    if (quantity < activeSupplier.stock) setQuantity(quantity + 1);
+    if (quantity < (activeSupplier.stock || 0)) setQuantity(quantity + 1);
   };
+
   const decrementQuantity = () => {
     if (quantity > 1) setQuantity(quantity - 1);
   };
@@ -147,7 +153,7 @@ const ProductDetailPage = () => {
           <div>
             <div className="glass-card p-6 relative">
               <img
-                src={product.image}
+                src={product.image || "/placeholder.svg"}
                 alt={product.name}
                 className="w-full h-96 object-cover rounded-lg"
               />
@@ -168,21 +174,25 @@ const ProductDetailPage = () => {
             <h1 className="font-display text-4xl text-neutral mb-4">
               {product.name}
             </h1>
-            <p className="text-gray-600 mb-6">{product.description}</p>
+            <p className="text-gray-600 mb-6">{product.description || ""}</p>
 
             <div className="mb-6">
               <span className="text-3xl font-bold text-primary">
-                ${activeSupplier.price.toFixed(2)}
+                ${Number(activeSupplier.price || 0).toFixed(2)}
               </span>
               <p className="text-sm text-gray-600">
-                {activeSupplier.stock} in stock
+                {activeSupplier.stock || 0} in stock
               </p>
             </div>
 
             <div className="mb-6">
-              <button onClick={decrementQuantity}>-</button>
+              <button onClick={decrementQuantity}>
+                <Minus />
+              </button>
               <input value={quantity} readOnly />
-              <button onClick={incrementQuantity}>+</button>
+              <button onClick={incrementQuantity}>
+                <Plus />
+              </button>
             </div>
 
             <button onClick={handleAddToCart} className="btn-medical">

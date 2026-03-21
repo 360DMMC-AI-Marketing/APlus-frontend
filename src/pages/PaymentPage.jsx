@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { createOrder } from '../api/orders';
+import { createPaymentIntent, confirmPayment, createPayPalOrder, capturePayPalPayment, createNet30Payment } from '../api/payments';
+import { stripePromise } from '../lib/stripe';
 
 const PaymentPage = () => {
   const navigate = useNavigate();
-  const { items, getTotal, getItemsCount, clearCart } = useCartStore();
-  
-  const [paymentMethod, setPaymentMethod] = useState('stripe'); // 'stripe' | 'paypal' | 'net30'
+  const location = useLocation();
+  const shippingInfo = location.state?.shippingInfo || {};
+  const { items, getTotal, clearCart } = useCartStore();
+
+  const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,37 +23,143 @@ const PaymentPage = () => {
     cardholderName: '',
   });
 
-  const [net30Eligible, setNet30Eligible] = useState(true); // TODO(backend): fetch from GET /users/me/credit
-  // B-08 fix: credit limit extracted to variable — replace with API value when backend is ready
-  // TODO(backend): const creditLimit = net30CreditData?.limit ?? NET30_CREDIT_LIMIT_PLACEHOLDER;
+  const [net30Eligible, setNet30Eligible] = useState(true);
   const NET30_CREDIT_LIMIT_PLACEHOLDER = 50000;
 
   const total = getTotal();
   const tax = total * 0.08;
   const finalTotal = total + tax;
 
-  // B-06 fix: redirect to cart when cart is empty (via useEffect, not render body)
   useEffect(() => {
     if (items.length === 0) {
       navigate('/cart');
     }
   }, [items.length, navigate]);
 
-  const handleNet30Payment = () => {
+  // Step 1: Create order from server-side cart (synced during checkout)
+  const placeOrder = async () => {
+    const data = await createOrder(shippingInfo, shippingInfo.instructions || '');
+    const order = data.order || data.data || data;
+    return order;
+  };
+
+  // ── STRIPE: order → intent → confirm card → confirm backend ──
+  const handleStripePayment = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!cardDetails.cardNumber || !cardDetails.expiryDate || !cardDetails.cvv || !cardDetails.cardholderName) {
+      setError('Please fill in all card details');
+      return;
+    }
+
+    if (cardDetails.cardNumber.replace(/\s/g, '').length !== 16) {
+      setError('Invalid card number');
+      return;
+    }
+
+    if (cardDetails.cvv.length !== 3 && cardDetails.cvv.length !== 4) {
+      setError('Invalid CVV');
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // 1. Create the order
+      const order = await placeOrder();
+
+      // 2. Create Stripe PaymentIntent
+      const intentData = await createPaymentIntent(order.id);
+      const { clientSecret } = intentData;
+
+      // 3. Confirm with Stripe client
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error('Stripe failed to load');
+
+      const [expMonth, expYear] = cardDetails.expiryDate.split('/');
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: {
+            number: cardDetails.cardNumber.replace(/\s/g, ''),
+            exp_month: parseInt(expMonth),
+            exp_year: parseInt(`20${expYear}`),
+            cvc: cardDetails.cvv,
+          },
+          billing_details: {
+            name: cardDetails.cardholderName,
+          },
+        },
+      });
+
+      if (stripeError) {
+        setError(stripeError.message);
+        return;
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        // 4. Confirm payment on backend
+        await confirmPayment(order.id);
+        clearCart();
+        navigate(`/order-confirmation/${order.id}`, {
+          state: { paymentMethod: 'stripe', amount: finalTotal }
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err?.data?.message || err.message || 'Payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ── PAYPAL: order → create paypal order → redirect → capture ──
+  const handlePayPalPayment = async () => {
     setProcessing(true);
     setError('');
 
-    // Simulate Net 30 application/approval
-    setTimeout(() => {
-      const orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      clearCart(); // B-02 fix: clear cart after successful order
-      navigate(`/order-confirmation/${orderId}`, { 
-        state: { 
-          paymentMethod: 'net30',
-          amount: finalTotal 
-        } 
+    try {
+      const order = await placeOrder();
+      const paypalData = await createPayPalOrder(order.id);
+
+      if (paypalData.approvalUrl) {
+        // Store orderId for capture on return
+        sessionStorage.setItem('pendingPayPalOrderId', order.id);
+        window.location.href = paypalData.approvalUrl;
+      } else {
+        // Fallback: capture immediately if no redirect needed
+        await capturePayPalPayment(order.id);
+        clearCart();
+        navigate(`/order-confirmation/${order.id}`, {
+          state: { paymentMethod: 'paypal', amount: finalTotal }
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err?.data?.message || err.message || 'PayPal payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ── NET30: order → net30 payment ──
+  const handleNet30Payment = async () => {
+    setProcessing(true);
+    setError('');
+
+    try {
+      const order = await placeOrder();
+      await createNet30Payment(order.id);
+      clearCart();
+      navigate(`/order-confirmation/${order.id}`, {
+        state: { paymentMethod: 'net30', amount: finalTotal }
       });
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      setError(err?.data?.message || err.message || 'Failed to place order');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const formatCardNumber = (value) => {
@@ -68,55 +179,6 @@ const PaymentPage = () => {
       return v.substring(0, 2) + (v.length > 2 ? '/' + v.substring(2, 4) : '');
     }
     return v;
-  };
-
-  const handleStripePayment = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (!cardDetails.cardNumber || !cardDetails.expiryDate || !cardDetails.cvv || !cardDetails.cardholderName) {
-      setError('Please fill in all card details');
-      return;
-    }
-
-    if (cardDetails.cardNumber.replace(/\s/g, '').length !== 16) {
-      setError('Invalid card number');
-      return;
-    }
-
-    if (cardDetails.cvv.length !== 3 && cardDetails.cvv.length !== 4) {
-      setError('Invalid CVV');
-      return;
-    }
-
-    setProcessing(true);
-
-    setTimeout(() => {
-      const orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      clearCart(); // B-02 fix: clear cart after successful order
-      navigate(`/order-confirmation/${orderId}`, { 
-        state: { 
-          paymentMethod: 'stripe',
-          amount: finalTotal 
-        } 
-      });
-    }, 2000);
-  };
-
-  const handlePayPalPayment = () => {
-    setProcessing(true);
-    setError('');
-
-    setTimeout(() => {
-      const orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      clearCart(); // B-02 fix: clear cart after successful order
-      navigate(`/order-confirmation/${orderId}`, { 
-        state: { 
-          paymentMethod: 'paypal',
-          amount: finalTotal 
-        } 
-      });
-    }, 1500);
   };
 
   return (
@@ -140,12 +202,13 @@ const PaymentPage = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('stripe')}
+                    onClick={() => !processing && setPaymentMethod('stripe')}
+                    disabled={processing}
                     className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
                       paymentMethod === 'stripe'
                         ? 'border-primary bg-primary/5'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <CreditCard className={`w-8 h-8 ${paymentMethod === 'stripe' ? 'text-primary' : 'text-gray-400'}`} />
                     <span className={`text-sm font-semibold ${paymentMethod === 'stripe' ? 'text-primary' : 'text-gray-600'}`}>
@@ -156,12 +219,13 @@ const PaymentPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('paypal')}
+                    onClick={() => !processing && setPaymentMethod('paypal')}
+                    disabled={processing}
                     className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
                       paymentMethod === 'paypal'
                         ? 'border-primary bg-primary/5'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <svg className={`w-8 h-8 ${paymentMethod === 'paypal' ? 'text-primary' : 'text-gray-400'}`} viewBox="0 0 24 24" fill="currentColor">
                       <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .76-.653h8.53c2.347 0 4.203.522 5.52 1.551 1.303 1.015 1.936 2.526 1.936 4.62 0 1.756-.45 3.287-1.338 4.55-.903 1.287-2.166 2.22-3.753 2.773-1.554.542-3.366.815-5.391.815H9.346a.77.77 0 0 0-.76.653l-.547 3.658a.641.641 0 0 1-.634.74z"/>
@@ -174,8 +238,8 @@ const PaymentPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('net30')}
-                    disabled={!net30Eligible}
+                    onClick={() => !processing && setPaymentMethod('net30')}
+                    disabled={!net30Eligible || processing}
                     className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
                       paymentMethod === 'net30'
                         ? 'border-primary bg-primary/5'

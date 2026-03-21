@@ -1,25 +1,59 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp, DollarSign, Users, Package, Store, ArrowRight } from 'lucide-react';
-import { mockOrders, mockProducts, mockPendingUsers, mockPendingVendors } from '../../utils/mockData';
+import { getAdminDashboard } from '../../api/admin';
+import { getAdminSuppliers } from '../../api/admin';
+import { getProducts } from '../../api/products';
 
 const AdminDashboard = () => {
-  const pendingVendorCount = mockPendingVendors.filter(v => v.status === 'pending').length;
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [pendingVendors, setPendingVendors] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+
+  useEffect(() => {
+    Promise.allSettled([
+      getAdminDashboard(),
+      getAdminSuppliers({ status: 'pending' }),
+      getProducts(),
+    ])
+      .then(([dashRes, vendorRes, productRes]) => {
+        if (dashRes.status === 'fulfilled') {
+          setDashboardData(dashRes.value.data || dashRes.value);
+        }
+        if (vendorRes.status === 'fulfilled') {
+          const vendors = vendorRes.value.data || vendorRes.value;
+          setPendingVendors(Array.isArray(vendors) ? vendors : []);
+        }
+        if (productRes.status === 'fulfilled') {
+          const products = productRes.value.data || productRes.value;
+          const list = Array.isArray(products) ? products : [];
+          setLowStockProducts(list.filter(p => p.stock_quantity < 30 || p.stock < 30).slice(0, 6));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="p-10 text-center">Loading dashboard...</div>;
+  }
+
+  const totalRevenue = dashboardData?.totalRevenue ?? dashboardData?.total_revenue ?? 0;
+  const totalProducts = dashboardData?.totalProducts ?? dashboardData?.total_products ?? 0;
+  const pendingVendorCount = pendingVendors.length;
 
   const stats = [
     {
       label: 'Total Revenue',
-      value: '$' + mockOrders.reduce((sum, order) => sum + order.total, 0).toFixed(2),
+      value: '$' + Number(totalRevenue).toFixed(2),
       icon: DollarSign,
-      color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
     },
     {
       label: 'Total Products',
-      value: mockProducts.length,
+      value: totalProducts,
       icon: Package,
-      color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600',
     },
@@ -27,7 +61,6 @@ const AdminDashboard = () => {
       label: 'Pending Vendors',
       value: pendingVendorCount,
       icon: Store,
-      color: 'from-orange-500 to-orange-600',
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-600',
       alert: pendingVendorCount > 0,
@@ -56,7 +89,7 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      {/* Pending Vendor Approvals — full width */}
+      {/* Pending Vendor Approvals */}
       <div className="glass-card p-6 animate-slide-up animate-delay-200">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display text-2xl text-neutral">Pending Vendor Applications</h2>
@@ -66,17 +99,19 @@ const AdminDashboard = () => {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockPendingVendors.filter(v => v.status === 'pending').map((vendor) => (
+          {pendingVendors.map((vendor) => (
             <div key={vendor.id} className="p-4 bg-gray-50 rounded-lg">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-semibold text-neutral">{vendor.name}</p>
-                  <p className="text-sm text-gray-500">{vendor.email}</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {vendor.categories.map(c => (
-                      <span key={c} className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded">{c}</span>
-                    ))}
-                  </div>
+                  <p className="font-semibold text-neutral">{vendor.business_name || vendor.name}</p>
+                  <p className="text-sm text-gray-500">{vendor.contact_email || vendor.email}</p>
+                  {vendor.product_categories && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {vendor.product_categories.map(c => (
+                        <span key={c} className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded">{c}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className="badge-status bg-yellow-100 text-yellow-800 text-xs">Pending</span>
               </div>
@@ -88,27 +123,29 @@ const AdminDashboard = () => {
               </Link>
             </div>
           ))}
-          {mockPendingVendors.filter(v => v.status === 'pending').length === 0 && (
+          {pendingVendors.length === 0 && (
             <p className="text-center text-gray-400 py-6 text-sm col-span-3">No pending applications</p>
           )}
         </div>
       </div>
 
       {/* Low Stock Alert */}
-      <div className="glass-card p-6 animate-slide-up animate-delay-400">
-        <h2 className="font-display text-2xl text-neutral mb-6">Low Stock Products</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockProducts.filter(p => p.stock < 30).slice(0, 6).map((product) => (
-            <div key={product.id} className="flex items-center gap-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <img src={product.image} alt={product.name} className="w-16 h-16 object-cover rounded-lg" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-neutral truncate">{product.name}</p>
-                <p className="text-sm text-red-600 font-semibold">Stock: {product.stock} units</p>
+      {lowStockProducts.length > 0 && (
+        <div className="glass-card p-6 animate-slide-up animate-delay-400">
+          <h2 className="font-display text-2xl text-neutral mb-6">Low Stock Products</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lowStockProducts.map((product) => (
+              <div key={product.id} className="flex items-center gap-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <img src={product.images?.[0] || product.image} alt={product.name} className="w-16 h-16 object-cover rounded-lg" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-neutral truncate">{product.name}</p>
+                  <p className="text-sm text-red-600 font-semibold">Stock: {product.stock_quantity ?? product.stock} units</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

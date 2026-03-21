@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Store, Mail, Phone, MapPin, FileText, Sparkles, AlertTriangle, X, Zap, Percent, ChevronDown, ChevronUp } from 'lucide-react';
-import { mockVendors, mockPendingVendors, emailTemplates } from '../../utils/mockData';
+import { getAdminSuppliers, approveSupplier, rejectSupplier } from '../../api/admin';
 
 // ─── Rejection reasons for checkbox list ──────────────────────────────────────
 const REJECTION_REASONS = [
@@ -19,7 +19,8 @@ const REJECTION_REASONS = [
 const COMMISSION_PRESETS = [5, 7, 8, 10, 12, 15];
 
 const AdminVendors = () => {
-  const [vendors, setVendors]               = useState([...mockVendors, ...mockPendingVendors]);
+  const [vendors, setVendors]               = useState([]);
+  const [loading, setLoading]               = useState(true);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [aiVerifying, setAiVerifying]       = useState(false);
   const [aiResults, setAiResults]           = useState(null);
@@ -40,8 +41,41 @@ const AdminVendors = () => {
   const [showCustomReason, setShowCustomReason] = useState(false);
   const [sendRejectionEmail, setSendRejectionEmail] = useState(true);
 
+  // ── Fetch vendors ──
+  useEffect(() => {
+    getAdminSuppliers()
+      .then((data) => {
+        const list = data.data || data;
+        setVendors(Array.isArray(list) ? list : []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Helper to normalize vendor fields for display
+  const v = (vendor) => ({
+    id: vendor.id,
+    company: vendor.business_name || vendor.company || vendor.name,
+    contactName: vendor.contact_name || vendor.contactName || '',
+    email: vendor.contact_email || vendor.email || '',
+    phone: vendor.phone || vendor.businessInfo?.phone || '',
+    address: typeof vendor.address === 'object'
+      ? `${vendor.address.street || ''}, ${vendor.address.city || ''}, ${vendor.address.state || ''}`
+      : (vendor.address || vendor.businessInfo?.address || ''),
+    taxId: vendor.tax_id || vendor.businessInfo?.taxId || '',
+    website: vendor.website || vendor.businessInfo?.website || '',
+    yearsInBusiness: vendor.years_in_business || vendor.businessInfo?.yearsInBusiness || 0,
+    categories: vendor.product_categories || vendor.categories || [],
+    status: vendor.status,
+    commissionRate: vendor.commission_rate || vendor.commissionRate || 10,
+    approvedDate: vendor.approved_at || vendor.approvedDate || '',
+    rejectionReason: vendor.rejection_reason || vendor.rejectedReason || '',
+    raw: vendor,
+  });
+
   // ─── AI Verification ──────────────────────────────────────────────────────
   const verifyWithAI = async (vendor) => {
+    const vd = v(vendor);
     setAiVerifying(true);
     setAiResults(null);
 
@@ -50,15 +84,13 @@ const AdminVendors = () => {
 Evaluate this vendor application and perform a 5-step verification:
 
 VENDOR DETAILS:
-- Company: ${vendor.company}
-- Contact: ${vendor.contactName}
-- Tax ID: ${vendor.businessInfo.taxId}
-- Address: ${vendor.businessInfo.address}
-- Website: ${vendor.businessInfo.website || 'Not provided'}
-- Years in Business: ${vendor.businessInfo.yearsInBusiness}
-- Business Categories: ${vendor.categories?.join(', ') || 'Not specified'}
-- FDA Registration: ${vendor.businessInfo.fdaNumber || 'Not provided'}
-- Business License: ${vendor.businessInfo.businessLicense || 'Not provided'}
+- Company: ${vd.company}
+- Contact: ${vd.contactName}
+- Tax ID: ${vd.taxId}
+- Address: ${vd.address}
+- Website: ${vd.website || 'Not provided'}
+- Years in Business: ${vd.yearsInBusiness}
+- Business Categories: ${vd.categories?.join(', ') || 'Not specified'}
 
 Perform the 5-step verification checklist and respond ONLY with a valid JSON object (no markdown, no extra text):
 {
@@ -83,7 +115,7 @@ Scoring rules:
 - webPresence: 20pts if website provided and years in business >2, 10pts if limited presence, 0pts if no website and <1 year
 - publicRecords: 20pts if no red flags, 10pts if minor concerns, 0pts if major issues
 Recommend APPROVE if score>=80, REVIEW if 60-79, REJECT if <60.
-missingItems: list only the specific items that are missing or failed (e.g. "FDA Registration Number", "Business License"). Empty array if nothing missing.`;
+missingItems: list only the specific items that are missing or failed. Empty array if nothing missing.`;
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -130,21 +162,17 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
       }
 
     } catch (err) {
-      const hasWebsite = !!vendor.businessInfo.website;
-      const hasLicense = !!vendor.businessInfo.businessLicense;
-      const hasFDA     = !!vendor.businessInfo.fdaNumber;
-      const validTax   = /EIN-\d{2}-\d{7}/.test(vendor.businessInfo.taxId || '');
-      const missing    = [];
-      if (!validTax)   missing.push('Valid Tax ID (EIN)');
-      if (!hasLicense) missing.push('Business License');
-      if (!hasFDA)     missing.push('FDA Registration Number');
+      const hasWebsite = !!vd.website;
+      const validTax = /EIN-\d{2}-\d{7}/.test(vd.taxId || '');
+      const missing = [];
+      if (!validTax) missing.push('Valid Tax ID (EIN)');
       if (!hasWebsite) missing.push('Business Website');
 
       const fallbackChecks = {
         taxId:           { passed: validTax,   score: validTax   ? 20 : 5,  detail: validTax   ? 'EIN format valid' : 'EIN format could not be verified' },
-        businessLicense: { passed: hasLicense, score: hasLicense ? 20 : 10, detail: hasLicense ? 'License number on file' : 'No license number provided' },
-        fdaRegistration: { passed: hasFDA,     score: hasFDA     ? 20 : 10, detail: hasFDA     ? `FDA# ${vendor.businessInfo.fdaNumber}` : 'No FDA registration — verify if required' },
-        webPresence:     { passed: hasWebsite, score: hasWebsite ? 20 : 5,  detail: hasWebsite ? `Website: ${vendor.businessInfo.website}` : 'No website provided' },
+        businessLicense: { passed: false, score: 10, detail: 'No license number provided' },
+        fdaRegistration: { passed: false, score: 10, detail: 'No FDA registration — verify if required' },
+        webPresence:     { passed: hasWebsite, score: hasWebsite ? 20 : 5,  detail: hasWebsite ? `Website: ${vd.website}` : 'No website provided' },
         publicRecords:   { passed: true,       score: 20,                   detail: 'Automated records check: no red flags' },
       };
       const total = Object.values(fallbackChecks).reduce((s, c) => s + c.score, 0);
@@ -156,7 +184,7 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
         notes: `Fallback verification (AI unavailable). Score ${total}/100.`,
         riskFactors: [],
         missingItems: missing,
-        findings: Object.entries(fallbackChecks).map(([, v]) => `${v.passed ? '✅' : '⚠️'} ${v.detail}`),
+        findings: Object.entries(fallbackChecks).map(([, val]) => `${val.passed ? '✅' : '⚠️'} ${val.detail}`),
         isRealAI: false,
       });
     } finally {
@@ -165,22 +193,26 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
   };
 
   // ─── Auto-actions ─────────────────────────────────────────────────────────
-  const autoApproveVendor = (vendor, score) => {
-    setVendors(prev => prev.map(v =>
-      v.id === vendor.id ? { ...v, status: 'approved', commissionRate: 10, approvedDate: new Date().toISOString(), autoApproved: true, aiScore: score } : v
+  const autoApproveVendor = async (vendor, score) => {
+    try {
+      await approveSupplier(vendor.id, { commission_rate: 10 });
+    } catch { /* update locally anyway */ }
+    setVendors(prev => prev.map(vv =>
+      vv.id === vendor.id ? { ...vv, status: 'approved', commission_rate: 10, approved_at: new Date().toISOString() } : vv
     ));
-    const email = emailTemplates.vendorApproved(vendor);
-    setAutoActionLog(log => [...log, { type: 'approved', vendor: vendor.company, score, email, time: new Date().toLocaleTimeString() }]);
+    setAutoActionLog(log => [...log, { type: 'approved', vendor: v(vendor).company, score, time: new Date().toLocaleTimeString() }]);
     setSelectedVendor(null);
     setAiResults(null);
   };
 
-  const autoRejectVendor = (vendor, reason) => {
-    setVendors(prev => prev.map(v =>
-      v.id === vendor.id ? { ...v, status: 'rejected', rejectedDate: new Date().toISOString(), rejectedReason: reason, autoRejected: true } : v
+  const autoRejectVendor = async (vendor, reason) => {
+    try {
+      await rejectSupplier(vendor.id, { reason });
+    } catch { /* update locally anyway */ }
+    setVendors(prev => prev.map(vv =>
+      vv.id === vendor.id ? { ...vv, status: 'rejected', rejection_reason: reason } : vv
     ));
-    const email = emailTemplates.vendorRejected(vendor, reason);
-    setAutoActionLog(log => [...log, { type: 'rejected', vendor: vendor.company, reason, email, time: new Date().toLocaleTimeString() }]);
+    setAutoActionLog(log => [...log, { type: 'rejected', vendor: v(vendor).company, reason, time: new Date().toLocaleTimeString() }]);
     setSelectedVendor(null);
     setAiResults(null);
   };
@@ -194,16 +226,17 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
     setShowApproveModal(true);
   };
 
-  const handleApproveConfirm = () => {
+  const handleApproveConfirm = async () => {
     const finalCommission = useCustomCommission ? parseFloat(customCommission) : commission;
     if (!finalCommission || finalCommission < 1 || finalCommission > 50) return;
-    setVendors(vendors.map(v =>
-      v.id === approveVendorTarget.id
-        ? { ...v, status: 'approved', commissionRate: finalCommission, approvedDate: new Date().toISOString() }
-        : v
+    try {
+      await approveSupplier(approveVendorTarget.id, { commission_rate: finalCommission });
+    } catch { /* update locally */ }
+    setVendors(vendors.map(vv =>
+      vv.id === approveVendorTarget.id
+        ? { ...vv, status: 'approved', commission_rate: finalCommission, approved_at: new Date().toISOString() }
+        : vv
     ));
-    const email = emailTemplates.vendorApproved(approveVendorTarget);
-    setEmailPreview(email);
     setShowApproveModal(false);
     setSelectedVendor(null);
     setAiResults(null);
@@ -212,7 +245,6 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
   // ─── Open Reject Modal ────────────────────────────────────────────────────
   const openRejectModal = (vendor) => {
     setSelectedVendor(vendor);
-    // Pre-check reasons that match AI-detected missing items
     const aiMissing = aiResults?.missingItems || [];
     const preChecked = REJECTION_REASONS
       .filter(r => aiMissing.some(m => m.toLowerCase().includes(r.id) || r.label.toLowerCase().includes(m.toLowerCase())))
@@ -230,31 +262,34 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
     );
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     const checkedLabels = REJECTION_REASONS
       .filter(r => selectedReasons.includes(r.id))
       .map(r => r.label);
     if (showCustomReason && customReason.trim()) checkedLabels.push(customReason.trim());
     const finalReason = checkedLabels.join('; ');
-    setVendors(vendors.map(v =>
-      v.id === selectedVendor.id
-        ? { ...v, status: 'rejected', rejectedReason: finalReason, rejectedDate: new Date().toISOString() }
-        : v
+    try {
+      await rejectSupplier(selectedVendor.id, { reason: finalReason });
+    } catch { /* update locally */ }
+    setVendors(vendors.map(vv =>
+      vv.id === selectedVendor.id
+        ? { ...vv, status: 'rejected', rejection_reason: finalReason }
+        : vv
     ));
-    if (sendRejectionEmail && selectedVendor) {
-      const email = emailTemplates.vendorRejected(selectedVendor, finalReason);
-      setEmailPreview(email);
-    }
     setShowRejectModal(false);
     setSelectedVendor(null);
     setAiResults(null);
   };
 
-  const pendingVendors  = vendors.filter(v => v.status === 'pending');
-  const approvedVendors = vendors.filter(v => v.status === 'approved');
-  const rejectedVendors = vendors.filter(v => v.status === 'rejected');
+  const pendingVendors  = vendors.filter(vv => vv.status === 'pending');
+  const approvedVendors = vendors.filter(vv => vv.status === 'approved');
+  const rejectedVendors = vendors.filter(vv => vv.status === 'rejected');
   const canReject = selectedReasons.length > 0 || (showCustomReason && customReason.trim());
   const finalCommissionValue = useCustomCommission ? parseFloat(customCommission) : commission;
+
+  if (loading) {
+    return <div className="p-10 text-center">Loading vendors...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -272,10 +307,7 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
                   {log.type === 'approved' ? '✅ Auto-approved' : '❌ Auto-rejected'}: {log.vendor}
                   {log.score && <span className="text-gray-500 ml-1">(Score: {log.score}/100)</span>}
                 </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-xs">{log.time}</span>
-                  <button onClick={() => setEmailPreview(log.email)} className="text-xs text-purple-600 underline">Preview email</button>
-                </div>
+                <span className="text-gray-400 text-xs">{log.time}</span>
               </div>
             ))}
           </div>
@@ -312,136 +344,134 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
             Pending Applications ({pendingVendors.length})
           </h2>
           <div className="grid gap-4">
-            {pendingVendors.map(vendor => (
-              <div key={vendor.id} className="border-2 border-gray-200 rounded-xl p-5 hover:border-primary/40 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex gap-4 flex-1">
-                    <div className="w-16 h-16 bg-secondary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Store className="w-8 h-8 text-secondary" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg text-secondary">{vendor.company}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{vendor.contactName}</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex items-center gap-2 text-gray-600"><Mail className="w-4 h-4" />{vendor.email}</div>
-                        <div className="flex items-center gap-2 text-gray-600"><Phone className="w-4 h-4" />{vendor.businessInfo.phone}</div>
-                        <div className="flex items-center gap-2 text-gray-600"><MapPin className="w-4 h-4" />{vendor.businessInfo.address}</div>
-                        <div className="flex items-center gap-2 text-gray-600"><FileText className="w-4 h-4" />Tax ID: {vendor.businessInfo.taxId}</div>
+            {pendingVendors.map(vendor => {
+              const vd = v(vendor);
+              return (
+                <div key={vd.id} className="border-2 border-gray-200 rounded-xl p-5 hover:border-primary/40 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex gap-4 flex-1">
+                      <div className="w-16 h-16 bg-secondary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Store className="w-8 h-8 text-secondary" />
                       </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg text-secondary">{vd.company}</h3>
+                        <p className="text-sm text-gray-600 mb-2">{vd.contactName}</p>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="flex items-center gap-2 text-gray-600"><Mail className="w-4 h-4" />{vd.email}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><Phone className="w-4 h-4" />{vd.phone}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><MapPin className="w-4 h-4" />{vd.address}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><FileText className="w-4 h-4" />Tax ID: {vd.taxId}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 flex-wrap justify-end ml-4">
+                      <button
+                        onClick={() => { setSelectedVendor(vendor); verifyWithAI(vendor); }}
+                        disabled={aiVerifying && selectedVendor?.id === vendor.id}
+                        className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-2 text-sm font-semibold disabled:opacity-50"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        {aiVerifying && selectedVendor?.id === vendor.id ? 'Analyzing...' : 'Verify with AI'}
+                      </button>
+                      <button
+                        onClick={() => openApproveModal(vendor)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-1.5"
+                      >
+                        <CheckCircle className="w-4 h-4" /> Approve
+                      </button>
+                      <button
+                        onClick={() => openRejectModal(vendor)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold flex items-center gap-1.5"
+                      >
+                        <XCircle className="w-4 h-4" /> Reject
+                      </button>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 flex-wrap justify-end ml-4">
-                    <button
-                      onClick={() => { setSelectedVendor(vendor); verifyWithAI(vendor); }}
-                      disabled={aiVerifying && selectedVendor?.id === vendor.id}
-                      className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-2 text-sm font-semibold disabled:opacity-50"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      {aiVerifying && selectedVendor?.id === vendor.id ? 'Analyzing...' : 'Verify with AI'}
-                    </button>
-                    <button
-                      onClick={() => openApproveModal(vendor)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-1.5"
-                    >
-                      <CheckCircle className="w-4 h-4" /> Approve
-                    </button>
-                    <button
-                      onClick={() => openRejectModal(vendor)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-4 h-4" /> Reject
-                    </button>
-                  </div>
-                </div>
-
-                {/* AI Results Panel */}
-                {selectedVendor?.id === vendor.id && (aiVerifying || aiResults) && (
-                  <div className="mt-4 pt-4 border-t-2 border-gray-100">
-                    {aiVerifying ? (
-                      <div className="flex items-center gap-3 text-purple-700">
-                        <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                        <span className="font-semibold">Claude AI is analyzing vendor information…</span>
-                      </div>
-                    ) : aiResults && (
-                      <div className={`p-4 rounded-xl border-2 ${aiResults.verified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                        {/* Score header */}
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="font-semibold text-secondary flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-purple-600" />
-                            AI Verification Results
-                            {aiResults.isRealAI && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Powered by Claude</span>}
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Score:</span>
-                            <div className="w-32 h-3 bg-gray-200 rounded-full overflow-hidden">
-                              <div className={`h-full ${aiResults.confidence >= 80 ? 'bg-green-500' : aiResults.confidence >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${aiResults.confidence}%` }} />
+                  {/* AI Results Panel */}
+                  {selectedVendor?.id === vendor.id && (aiVerifying || aiResults) && (
+                    <div className="mt-4 pt-4 border-t-2 border-gray-100">
+                      {aiVerifying ? (
+                        <div className="flex items-center gap-3 text-purple-700">
+                          <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                          <span className="font-semibold">Claude AI is analyzing vendor information…</span>
+                        </div>
+                      ) : aiResults && (
+                        <div className={`p-4 rounded-xl border-2 ${aiResults.verified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-semibold text-secondary flex items-center gap-2">
+                              <Sparkles className="w-5 h-5 text-purple-600" />
+                              AI Verification Results
+                              {aiResults.isRealAI && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Powered by Claude</span>}
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600">Score:</span>
+                              <div className="w-32 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div className={`h-full ${aiResults.confidence >= 80 ? 'bg-green-500' : aiResults.confidence >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${aiResults.confidence}%` }} />
+                              </div>
+                              <span className="text-lg font-bold">{aiResults.confidence}/100</span>
                             </div>
-                            <span className="text-lg font-bold">{aiResults.confidence}/100</span>
                           </div>
-                        </div>
 
-                        {/* 5-Step Checklist */}
-                        <div className="mb-4 bg-white rounded-lg p-4 border border-gray-200">
-                          <h5 className="font-semibold text-sm text-gray-700 mb-3">5-Step Verification Checklist</h5>
-                          <ul className="space-y-2">
-                            {aiResults.findings.map((finding, i) => (
-                              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                                <span className="flex-shrink-0 mt-0.5">{finding.split(' ')[0]}</span>
-                                <span className="flex-1">{finding.substring(finding.indexOf(' ') + 1)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        {/* Missing items — auto-populated into reject */}
-                        {aiResults.missingItems?.length > 0 && (
-                          <div className="mb-4 bg-orange-50 rounded-lg p-3 border border-orange-200">
-                            <p className="text-xs font-semibold text-orange-800 mb-1.5">⚠️ Missing / Failed Items (will be auto-filled in rejection):</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {aiResults.missingItems.map((item, i) => (
-                                <span key={i} className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full border border-orange-200">{item}</span>
+                          <div className="mb-4 bg-white rounded-lg p-4 border border-gray-200">
+                            <h5 className="font-semibold text-sm text-gray-700 mb-3">5-Step Verification Checklist</h5>
+                            <ul className="space-y-2">
+                              {aiResults.findings.map((finding, i) => (
+                                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                                  <span className="flex-shrink-0 mt-0.5">{finding.split(' ')[0]}</span>
+                                  <span className="flex-1">{finding.substring(finding.indexOf(' ') + 1)}</span>
+                                </li>
                               ))}
+                            </ul>
+                          </div>
+
+                          {aiResults.missingItems?.length > 0 && (
+                            <div className="mb-4 bg-orange-50 rounded-lg p-3 border border-orange-200">
+                              <p className="text-xs font-semibold text-orange-800 mb-1.5">⚠️ Missing / Failed Items:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {aiResults.missingItems.map((item, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full border border-orange-200">{item}</span>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Risk Factors */}
-                        {aiResults.riskFactors?.length > 0 && (
-                          <div className="mb-4 bg-red-50 rounded-lg p-3 border border-red-200">
-                            <p className="text-xs font-semibold text-red-800 mb-1">🚩 Risk Factors:</p>
-                            <ul className="space-y-0.5">{aiResults.riskFactors.map((rf, i) => <li key={i} className="text-xs text-red-700">• {rf}</li>)}</ul>
-                          </div>
-                        )}
+                          {aiResults.riskFactors?.length > 0 && (
+                            <div className="mb-4 bg-red-50 rounded-lg p-3 border border-red-200">
+                              <p className="text-xs font-semibold text-red-800 mb-1">🚩 Risk Factors:</p>
+                              <ul className="space-y-0.5">{aiResults.riskFactors.map((rf, i) => <li key={i} className="text-xs text-red-700">• {rf}</li>)}</ul>
+                            </div>
+                          )}
 
-                        {/* Recommendation banner */}
-                        <div className={`p-4 rounded-lg ${
-                          aiResults.recommendation === 'APPROVE' ? 'bg-green-100 border-2 border-green-300' :
-                          aiResults.recommendation === 'REVIEW'  ? 'bg-yellow-100 border-2 border-yellow-300' :
-                          'bg-red-100 border-2 border-red-300'
-                        }`}>
-                          <div className="flex items-start gap-3">
-                            {aiResults.recommendation === 'APPROVE' && <CheckCircle className="w-6 h-6 text-green-700 flex-shrink-0" />}
-                            {aiResults.recommendation === 'REVIEW'  && <AlertTriangle className="w-6 h-6 text-yellow-700 flex-shrink-0" />}
-                            {aiResults.recommendation === 'REJECT'  && <XCircle className="w-6 h-6 text-red-700 flex-shrink-0" />}
-                            <div className="flex-1">
-                              <p className="text-sm font-bold mb-1">
-                                AI Recommendation: <span className={aiResults.recommendation === 'APPROVE' ? 'text-green-700' : aiResults.recommendation === 'REVIEW' ? 'text-yellow-700' : 'text-red-700'}>{aiResults.recommendation}</span>
-                              </p>
-                              <p className="text-xs text-gray-700">{aiResults.notes}</p>
-                              {aiResults.recommendation === 'APPROVE' && <p className="text-xs text-green-700 mt-1 font-semibold">⚡ Auto-approving vendor and sending notification email…</p>}
-                              {aiResults.recommendation === 'REJECT'  && <p className="text-xs text-red-700 mt-1 font-semibold">⚡ Auto-rejecting vendor and sending notification email…</p>}
-                              {aiResults.recommendation === 'REVIEW'  && <p className="text-xs text-yellow-700 mt-1 font-semibold">⚠️ Manual review required — use Approve / Reject buttons above.</p>}
+                          <div className={`p-4 rounded-lg ${
+                            aiResults.recommendation === 'APPROVE' ? 'bg-green-100 border-2 border-green-300' :
+                            aiResults.recommendation === 'REVIEW'  ? 'bg-yellow-100 border-2 border-yellow-300' :
+                            'bg-red-100 border-2 border-red-300'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              {aiResults.recommendation === 'APPROVE' && <CheckCircle className="w-6 h-6 text-green-700 flex-shrink-0" />}
+                              {aiResults.recommendation === 'REVIEW'  && <AlertTriangle className="w-6 h-6 text-yellow-700 flex-shrink-0" />}
+                              {aiResults.recommendation === 'REJECT'  && <XCircle className="w-6 h-6 text-red-700 flex-shrink-0" />}
+                              <div className="flex-1">
+                                <p className="text-sm font-bold mb-1">
+                                  AI Recommendation: <span className={aiResults.recommendation === 'APPROVE' ? 'text-green-700' : aiResults.recommendation === 'REVIEW' ? 'text-yellow-700' : 'text-red-700'}>{aiResults.recommendation}</span>
+                                </p>
+                                <p className="text-xs text-gray-700">{aiResults.notes}</p>
+                                {aiResults.recommendation === 'APPROVE' && <p className="text-xs text-green-700 mt-1 font-semibold">⚡ Auto-approving vendor…</p>}
+                                {aiResults.recommendation === 'REJECT'  && <p className="text-xs text-red-700 mt-1 font-semibold">⚡ Auto-rejecting vendor…</p>}
+                                {aiResults.recommendation === 'REVIEW'  && <p className="text-xs text-yellow-700 mt-1 font-semibold">⚠️ Manual review required — use Approve / Reject buttons above.</p>}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -452,25 +482,27 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
           <CheckCircle className="w-6 h-6 text-green-500" /> Approved Vendors ({approvedVendors.length})
         </h2>
         <div className="grid gap-3">
-          {approvedVendors.map(vendor => (
-            <div key={vendor.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <Store className="w-8 h-8 text-green-600 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-secondary">{vendor.company}</p>
-                  <p className="text-sm text-gray-500">{vendor.email}</p>
+          {approvedVendors.map(vendor => {
+            const vd = v(vendor);
+            return (
+              <div key={vd.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Store className="w-8 h-8 text-green-600 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-secondary">{vd.company}</p>
+                    <p className="text-sm text-gray-500">{vd.email}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {vd.approvedDate && <p className="text-sm text-gray-500">Approved: {new Date(vd.approvedDate).toLocaleDateString()}</p>}
+                  <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                    <Percent className="w-3.5 h-3.5 text-green-600" />
+                    <p className="text-sm font-bold text-green-700">Commission: {vd.commissionRate}%</p>
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Approved: {new Date(vendor.approvedDate).toLocaleDateString()}</p>
-                <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                  <Percent className="w-3.5 h-3.5 text-green-600" />
-                  <p className="text-sm font-bold text-green-700">Commission: {vendor.commissionRate}%</p>
-                </div>
-                {vendor.autoApproved && <p className="text-xs text-purple-600 mt-0.5">⚡ AI auto-approved (Score: {vendor.aiScore}/100)</p>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -481,37 +513,20 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
             <XCircle className="w-6 h-6 text-red-500" /> Rejected Applications ({rejectedVendors.length})
           </h2>
           <div className="grid gap-3">
-            {rejectedVendors.map(vendor => (
-              <div key={vendor.id} className="flex items-center justify-between p-4 border border-red-100 bg-red-50/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Store className="w-8 h-8 text-red-400 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-secondary">{vendor.company}</p>
-                    <p className="text-sm text-red-600 mt-0.5">{vendor.rejectedReason}</p>
+            {rejectedVendors.map(vendor => {
+              const vd = v(vendor);
+              return (
+                <div key={vd.id} className="flex items-center justify-between p-4 border border-red-100 bg-red-50/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Store className="w-8 h-8 text-red-400 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-secondary">{vd.company}</p>
+                      <p className="text-sm text-red-600 mt-0.5">{vd.rejectionReason}</p>
+                    </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-400 flex-shrink-0 ml-4">{vendor.rejectedDate ? new Date(vendor.rejectedDate).toLocaleDateString() : ''}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Email Preview Modal ───────────────────────────────────────────────── */}
-      {emailPreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-xl text-secondary flex items-center gap-2"><Mail className="w-6 h-6 text-primary" />Email Notification Preview</h3>
-              <button onClick={() => setEmailPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div><span className="text-xs font-semibold text-gray-500 uppercase">To:</span><p className="text-sm text-gray-800">{emailPreview.to}</p></div>
-              <div><span className="text-xs font-semibold text-gray-500 uppercase">Subject:</span><p className="text-sm font-semibold text-gray-800">{emailPreview.subject}</p></div>
-              <div><span className="text-xs font-semibold text-gray-500 uppercase">Body:</span><pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans mt-1">{emailPreview.body}</pre></div>
-            </div>
-            <p className="text-xs text-gray-400 mt-3">In production, this email will be sent automatically via SendGrid/AWS SES.</p>
-            <button onClick={() => setEmailPreview(null)} className="w-full mt-4 btn-medical">Close Preview</button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -520,7 +535,6 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
       {showApproveModal && approveVendorTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            {/* Header */}
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-xl text-secondary flex items-center gap-2">
                 <CheckCircle className="w-6 h-6 text-green-600" /> Approve Vendor
@@ -528,10 +542,9 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
               <button onClick={() => setShowApproveModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <p className="text-sm text-gray-500 mb-5">
-              Set the commission rate for <span className="font-semibold text-secondary">{approveVendorTarget.company}</span> before approving.
+              Set the commission rate for <span className="font-semibold text-secondary">{v(approveVendorTarget).company}</span> before approving.
             </p>
 
-            {/* Commission info box */}
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -552,7 +565,6 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
               </div>
             </div>
 
-            {/* Preset buttons */}
             <div className="mb-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quick Select</p>
               <div className="grid grid-cols-6 gap-2">
@@ -571,15 +583,8 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
                   </button>
                 ))}
               </div>
-              {/* Range labels */}
-              <div className="flex justify-between mt-1.5 px-1">
-                <span className="text-[10px] text-gray-400">Low margin</span>
-                <span className="text-[10px] text-gray-400">Standard range (5–15%)</span>
-                <span className="text-[10px] text-gray-400">High margin</span>
-              </div>
             </div>
 
-            {/* Custom input */}
             <div className="mb-5">
               <button
                 type="button"
@@ -610,13 +615,12 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
               )}
             </div>
 
-            {/* Warn if outside typical range */}
             {finalCommissionValue && (finalCommissionValue < 5 || finalCommissionValue > 15) && (
               <div className="mb-4 flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 {finalCommissionValue < 5
-                  ? 'This rate is below the typical minimum of 5%. Make sure this is intentional.'
-                  : 'This rate is above the typical maximum of 15%. High rates may discourage vendors.'}
+                  ? 'This rate is below the typical minimum of 5%.'
+                  : 'This rate is above the typical maximum of 15%.'}
               </div>
             )}
 
@@ -641,7 +645,6 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
       {showRejectModal && selectedVendor && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            {/* Header */}
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-xl text-secondary flex items-center gap-2">
                 <XCircle className="w-6 h-6 text-red-600" /> Reject Application
@@ -649,18 +652,16 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
               <button onClick={() => setShowRejectModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Select the reason(s) for rejecting <span className="font-semibold text-secondary">{selectedVendor.company}</span>.
+              Select the reason(s) for rejecting <span className="font-semibold text-secondary">{v(selectedVendor).company}</span>.
             </p>
 
-            {/* AI-pre-filled notice */}
             {selectedReasons.length > 0 && (
               <div className="flex items-center gap-2 mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
                 <Sparkles className="w-4 h-4 flex-shrink-0" />
-                <span>AI pre-selected {selectedReasons.length} reason{selectedReasons.length > 1 ? 's' : ''} based on the verification scan. Review and adjust below.</span>
+                <span>AI pre-selected {selectedReasons.length} reason{selectedReasons.length > 1 ? 's' : ''} based on the verification scan.</span>
               </div>
             )}
 
-            {/* Reason checkboxes */}
             <div className="space-y-2 mb-4">
               {REJECTION_REASONS.map(reason => {
                 const checked = selectedReasons.includes(reason.id);
@@ -670,12 +671,9 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
                     type="button"
                     onClick={() => toggleReason(reason.id)}
                     className={`w-full flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all ${
-                      checked
-                        ? 'border-red-400 bg-red-50'
-                        : 'border-gray-200 hover:border-red-200 hover:bg-red-50/30'
+                      checked ? 'border-red-400 bg-red-50' : 'border-gray-200 hover:border-red-200 hover:bg-red-50/30'
                     }`}
                   >
-                    {/* Custom checkbox */}
                     <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
                       checked ? 'border-red-500 bg-red-500' : 'border-gray-300'
                     }`}>
@@ -694,23 +692,13 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
               })}
             </div>
 
-            {/* Other / Custom reason */}
             <div className="border-2 border-dashed border-gray-200 rounded-xl overflow-hidden mb-4">
               <button
                 type="button"
                 onClick={() => setShowCustomReason(v => !v)}
                 className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
               >
-                <span className="flex items-center gap-2">
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${showCustomReason && customReason.trim() ? 'border-red-500 bg-red-500' : 'border-gray-300'}`}>
-                    {showCustomReason && customReason.trim() && (
-                      <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  Other — specify custom reason
-                </span>
+                <span>Other — specify custom reason</span>
                 {showCustomReason ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showCustomReason && (
@@ -727,23 +715,6 @@ missingItems: list only the specific items that are missing or failed (e.g. "FDA
               )}
             </div>
 
-            {/* Email toggle */}
-            <button
-              type="button"
-              onClick={() => setSendRejectionEmail(v => !v)}
-              className="flex items-center gap-3 mb-5 group"
-            >
-              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${sendRejectionEmail ? 'border-primary bg-primary' : 'border-gray-300 group-hover:border-gray-400'}`}>
-                {sendRejectionEmail && (
-                  <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </div>
-              <span className="text-sm text-gray-600">Send rejection notification email to vendor</span>
-            </button>
-
-            {/* Summary of selected */}
             {canReject && (
               <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                 <p className="text-xs font-semibold text-gray-600 mb-1.5">Rejection will include:</p>

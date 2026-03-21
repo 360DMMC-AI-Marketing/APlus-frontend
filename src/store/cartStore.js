@@ -35,18 +35,23 @@ export const useCartStore = create(
       
       // Update item quantity
       updateQuantity: (productId, quantity) => {
+        const item = get().items.find(i => i.id === productId);
+        if (!item) return;
+
         if (quantity <= 0) {
           get().removeItem(productId);
           return;
         }
-        
+
+        if (item.stock && quantity > item.stock) return;
+
         set({
-          items: get().items.map(item =>
-            item.id === productId ? { ...item, quantity } : item
+          items: get().items.map(i =>
+            i.id === productId ? { ...i, quantity } : i
           ),
         });
       },
-      
+
       // Clear cart
       clearCart: () => {
         set({ items: [] });

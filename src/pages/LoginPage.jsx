@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { LogIn, AlertCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
-import { login as apiLogin } from "../api/auth";
 
 const LoginPage = () => {
   const [error, setError] = useState("");
@@ -17,11 +16,11 @@ const LoginPage = () => {
 
   const onSubmit = async (data) => {
     setError("");
-    try {
-      const user = await apiLogin(data.email, data.password);
+    const result = await login(data.email, data.password);
+    if (result.success) {
       navigate("/products");
-    } catch (err) {
-      setError(err.message);
+    } else {
+      setError(result.error);
     }
   };
 

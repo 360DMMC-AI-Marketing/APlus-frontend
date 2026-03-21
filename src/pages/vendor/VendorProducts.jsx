@@ -12,12 +12,18 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
-import { getProducts } from "../../api/products";
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from "../../api/products";
 
-// ─── Helper: compute effective price & discount info ───────────────────────────
+// ─── Pricing helper ─────────────────────────
 export const getPricing = (product) => {
   const original = product.originalPrice ?? null;
-  const current = product.price;
+  const current = product.price ?? 0;
+
   if (original && original > current) {
     const pct = Math.round(((original - current) / original) * 100);
     return {
@@ -27,6 +33,7 @@ export const getPricing = (product) => {
       discountPct: pct,
     };
   }
+
   return {
     hasDiscount: false,
     displayPrice: current,
@@ -35,41 +42,35 @@ export const getPricing = (product) => {
   };
 };
 
-// ─── Reusable price display ─────────────────────────────────
+// ─── Price Cell ─────────────────────────
 const PriceCell = ({ product }) => {
   const { hasDiscount, displayPrice, originalPrice, discountPct } =
     getPricing(product);
+
   if (!hasDiscount) {
     return (
       <span className="font-semibold text-neutral">
-        ${displayPrice.toFixed(2)}
+        ${Number(displayPrice).toFixed(2)}
       </span>
     );
   }
+
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-2">
         <span className="font-bold text-primary">
-          ${displayPrice.toFixed(2)}
+          ${Number(displayPrice).toFixed(2)}
         </span>
         <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">
           -{discountPct}%
         </span>
       </div>
       <span className="text-xs text-gray-400 line-through">
-        ${originalPrice.toFixed(2)}
+        ${Number(originalPrice).toFixed(2)}
       </span>
     </div>
   );
 };
-
-const CATEGORIES = [
-  "Surgical Supplies",
-  "Personal Protection",
-  "Laboratory",
-  "Patient Care",
-  "Emergency Medical",
-];
 
 const EMPTY_FORM = {
   name: "",
@@ -95,46 +96,32 @@ const VendorProducts = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
 
-  const [showCsvModal, setShowCsvModal] = useState(false);
   const [csvResults, setCsvResults] = useState(null);
-  const [csvError, setCsvError] = useState("");
   const csvInputRef = useRef(null);
 
-  // ✅ FETCH PRODUCTS
+  // ✅ FETCH ONLY VENDOR PRODUCTS
   useEffect(() => {
     getProducts()
       .then((data) => {
         const list = data.data || data;
+        const safeList = Array.isArray(list) ? list : [];
 
-        // filter vendor products (safe fallback if mismatch)
-        const filtered = list.filter(
-          (p) => String(p.supplierId) === String(user?.vendorId),
+        const filtered = safeList.filter(
+          (p) => String(p.supplierId) === String(user?.vendorId)
         );
 
-        setProducts(filtered.length ? filtered : list);
+        setProducts(filtered); // ✅ FIXED (no fallback)
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [user]);
 
-  // ── CSV (unchanged) ──
-  const CSV_TEMPLATE = `name,category,price,stock,description\nSurgical Gloves Box 50,Personal Protection,14.99,100,Nitrile exam gloves latex-free`;
-
-  const downloadCsvTemplate = () => {
-    const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "product_import_template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
+  // ── CSV IMPORT ──
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       const text = evt.target.result;
@@ -143,6 +130,7 @@ const VendorProducts = () => {
 
       lines.slice(1).forEach((line, i) => {
         const cols = line.split(",");
+
         parsed.push({
           id: "csv-" + Date.now() + "-" + i,
           name: cols[0],
@@ -150,25 +138,31 @@ const VendorProducts = () => {
           price: parseFloat(cols[2]),
           stock: parseInt(cols[3]),
           description: cols[4] || "",
+          supplierId: user?.vendorId, // ✅ FIX
         });
       });
 
-      setCsvResults({ parsed, errors: [] });
+      setCsvResults({ parsed });
     };
+
     reader.readAsText(file);
   };
 
   const importCsvProducts = () => {
     setProducts((prev) => [...prev, ...csvResults.parsed]);
-    setShowCsvModal(false);
+    setCsvResults(null);
   };
 
-  // ── Filtering ──
-  const filtered = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // ── FILTER ──
+  const filtered = products.filter((p) => {
+    const name = p.name || "";
+    const category = p.category || "";
+
+    return (
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      category.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   const openAdd = () => {
     setForm(EMPTY_FORM);
@@ -182,25 +176,67 @@ const VendorProducts = () => {
     setShowAddModal(true);
   };
 
-  const handleSave = () => {
-    if (editingProduct) {
-      setProducts(
-        products.map((p) =>
-          p.id === editingProduct.id ? { ...p, ...form } : p,
-        ),
+  // ── SAVE (CREATE / UPDATE) ──
+  const handleSave = async () => {
+    const productData = {
+      name: form.name,
+      category: form.category,
+      price: Number(form.price) || 0,
+      originalPrice: form.discountEnabled
+        ? Number(form.originalPrice) || 0
+        : undefined,
+      stock: Number(form.stock) || 0,
+      description: form.description || "",
+      supplierId: user?.vendorId, // ✅ FIX
+    };
+
+    try {
+      if (editingProduct) {
+        const data = await updateProduct(editingProduct.id, productData);
+        const updated = data.data || data;
+
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct.id ? { ...p, ...updated } : p
+          )
+        );
+      } else {
+        const data = await createProduct(productData);
+        const created = data.data || data;
+
+        setProducts((prev) => [created, ...prev]);
+      }
+
+      setShowAddModal(false);
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Failed to save product"
       );
-    } else {
-      setProducts((prev) => [...prev, { ...form, id: Date.now() }]);
     }
-    setShowAddModal(false);
   };
 
-  const handleDelete = (id) => {
-    setProducts(products.filter((p) => p.id !== id));
+  // ── DELETE ──
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this product?")) return;
+
+    try {
+      await deleteProduct(id);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.response?.data?.message ||
+          err.message ||
+          "Failed to delete product"
+      );
+    }
   };
 
   const discountedCount = products.filter(
-    (p) => getPricing(p).hasDiscount,
+    (p) => getPricing(p).hasDiscount
   ).length;
 
   if (loading) {
@@ -242,12 +278,12 @@ const VendorProducts = () => {
         <tbody>
           {filtered.map((p) => (
             <tr key={p.id}>
-              <td>{p.name}</td>
-              <td>{p.category}</td>
+              <td>{p.name || "Unnamed"}</td>
+              <td>{p.category || "-"}</td>
               <td>
                 <PriceCell product={p} />
               </td>
-              <td>{p.stock}</td>
+              <td>{p.stock || 0}</td>
               <td>
                 <button onClick={() => openEdit(p)}>Edit</button>
                 <button onClick={() => handleDelete(p.id)}>Delete</button>

@@ -1,32 +1,43 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { MapPin, CreditCard, Package } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
+import { syncCartToBackend } from '../api/cart';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { items, getTotal } = useCartStore();
   const { user } = useAuthStore();
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
-      fullName: user?.name || '',
+      fullName: user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
       email: user?.email || '',
-      company: user?.company || '',
+      company: user?.company || user?.companyName || '',
     }
   });
 
-  // B-05 fix: navigate side effect belongs in useEffect, not in render body
   useEffect(() => {
     if (items.length === 0) {
       navigate('/cart');
     }
   }, [items.length, navigate]);
 
-  const onSubmit = (data) => {
-    // B-A01 note: passing via router state avoids sessionStorage PII (architectural fix, separate ticket)
-    navigate('/payment', { state: { shippingInfo: data } });
+  const onSubmit = async (data) => {
+    setSyncing(true);
+    setSyncError('');
+    try {
+      await syncCartToBackend(items);
+      navigate('/payment', { state: { shippingInfo: data } });
+    } catch (err) {
+      console.error(err);
+      setSyncError(err.message || 'Failed to prepare your order. Please try again.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   if (items.length === 0) {
@@ -256,12 +267,28 @@ const CheckoutPage = () => {
                   <span className="text-primary">${total.toFixed(2)}</span>
                 </div>
 
+                {syncError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {syncError}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full btn-medical"
+                  disabled={syncing}
+                  className="w-full btn-medical disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Continue to Payment
-                  <CreditCard className="w-5 h-5" />
+                  {syncing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Preparing order...
+                    </span>
+                  ) : (
+                    <>
+                      Continue to Payment
+                      <CreditCard className="w-5 h-5" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
