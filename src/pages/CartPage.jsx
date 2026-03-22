@@ -135,17 +135,17 @@ const CartPage = () => {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Shipping</span>
-                  <span className="font-semibold">Calculated at checkout</span>
+                  <span className="font-semibold">$25.00</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Tax</span>
-                  <span className="font-semibold">Calculated at checkout</span>
+                  <span>Tax (8%)</span>
+                  <span className="font-semibold">${(getTotal() * 0.08).toFixed(2)}</span>
                 </div>
               </div>
 
               <div className="flex justify-between text-xl font-bold text-neutral mb-6">
-                <span>Total</span>
-                <span className="text-primary">${getTotal().toFixed(2)}</span>
+                <span>Estimated Total</span>
+                <span className="text-primary">${(getTotal() + 25 + getTotal() * 0.08).toFixed(2)}</span>
               </div>
 
               <button

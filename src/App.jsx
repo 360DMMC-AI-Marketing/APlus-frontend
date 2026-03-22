@@ -44,6 +44,7 @@ import VendorProducts from './pages/vendor/VendorProducts';
 import VendorOrders from './pages/vendor/VendorOrders';
 import VendorAnalytics from './pages/vendor/VendorAnalytics';
 import VendorSettings from './pages/vendor/VendorSettings';
+import { Toaster } from 'react-hot-toast';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false, vendorOnly = false }) => {
@@ -67,6 +68,7 @@ const ProtectedRoute = ({ children, adminOnly = false, vendorOnly = false }) => 
 function App() {
   return (
     <Router>
+      <Toaster position="top-right" toastOptions={{ duration: 2500, style: { borderRadius: '12px', padding: '12px 16px', fontSize: '14px' } }} />
       <div className="min-h-screen flex flex-col">
         <Routes>
           

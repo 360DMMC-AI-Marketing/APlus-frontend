@@ -13,8 +13,8 @@ const VendorOrders = () => {
 
   useEffect(() => {
     getSupplierOrders()
-      .then((data) => {
-        const list = data.data || data;
+      .then((res) => {
+        const list = res.data || res.orders || res;
         setOrders(Array.isArray(list) ? list : []);
       })
       .catch(console.error)
@@ -22,7 +22,7 @@ const VendorOrders = () => {
   }, []);
 
   const filteredOrders = orders.filter(order => {
-    const orderId = (order.order_number || order.id || '').toString().toLowerCase();
+    const orderId = (order.orderNumber || order.order_number || order.id || '').toString().toLowerCase();
     const matchesSearch = orderId.includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -86,8 +86,8 @@ const VendorOrders = () => {
   };
 
   const totals = {
-    revenue: filteredOrders.reduce((s, o) => s + Number(o.supplier_payout || o.supplierPayout || o.total_amount || 0), 0),
-    commission: filteredOrders.reduce((s, o) => s + Number(o.commission || o.commission_amount || 0), 0),
+    revenue: filteredOrders.reduce((s, o) => s + Number(o.payoutAmount || o.supplier_payout || o.total_amount || 0), 0),
+    commission: filteredOrders.reduce((s, o) => s + Number(o.commissionAmount || o.commission_amount || 0), 0),
   };
 
   if (loading) {
@@ -149,10 +149,10 @@ const VendorOrders = () => {
         <div className="space-y-4">
           {filteredOrders.map((order, idx) => {
             const items = order.items || order.order_items || [];
-            const addr = order.shipping_address || order.shippingAddress || {};
-            const payout = Number(order.supplier_payout || order.supplierPayout || order.total_amount || 0);
-            const commission = Number(order.commission || order.commission_amount || 0);
-            const orderId = order.order_number || order.id;
+            const addr = order.shippingAddress || order.shipping_address || {};
+            const payout = Number(order.payoutAmount || order.supplier_payout || order.total_amount || 0);
+            const commission = Number(order.commissionAmount || order.commission_amount || 0);
+            const orderId = order.orderNumber || order.order_number || order.id;
 
             return (
               <div key={order.id || idx} className="glass-card p-6">
@@ -165,7 +165,7 @@ const VendorOrders = () => {
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">
-                      {new Date(order.created_at || order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      {new Date(order.createdAt || order.created_at || order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                     {addr.name && (
                       <p className="text-xs text-gray-400 mt-1">

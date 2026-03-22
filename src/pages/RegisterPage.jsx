@@ -261,7 +261,17 @@ const RegisterPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-semibold text-neutral mb-1">Password *</label>
-                <input type="password" {...register('password', { required: 'Password is required', minLength: { value: 8, message: 'Minimum 8 characters' } })} className="input-medical" placeholder="••••••••" />
+                <input type="password" {...register('password', {
+                  required: 'Password is required',
+                  minLength: { value: 8, message: 'Minimum 8 characters' },
+                  validate: (v) => {
+                    if (!/[A-Z]/.test(v)) return 'Must contain an uppercase letter';
+                    if (!/[a-z]/.test(v)) return 'Must contain a lowercase letter';
+                    if (!/[0-9]/.test(v)) return 'Must contain a number';
+                    if (!/[^A-Za-z0-9]/.test(v)) return 'Must contain a special character';
+                    return true;
+                  }
+                })} className="input-medical" placeholder="••••••••" />
                 {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
               </div>
               <div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, DollarSign, ShoppingBag, Package, BarChart2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getSupplierProfile, getSupplierProducts, getSupplierRevenueTrend } from '../../api/suppliers';
+import { resolveProductImages } from '../../utils/imageHelper';
 
 const VendorAnalytics = () => {
   const { user } = useAuthStore();
@@ -17,10 +18,17 @@ const VendorAnalytics = () => {
       getSupplierRevenueTrend(),
     ])
       .then(([profRes, prodRes, trendRes]) => {
-        if (profRes.status === 'fulfilled') setVendor(profRes.value.data || profRes.value);
+        if (profRes.status === 'fulfilled') {
+          const d = profRes.value;
+          setVendor(d.data || d);
+        }
         if (prodRes.status === 'fulfilled') {
-          const d = prodRes.value.data || prodRes.value;
-          setVendorProducts(Array.isArray(d) ? d : []);
+          const d = prodRes.value.products || prodRes.value.data || prodRes.value;
+          const prods = Array.isArray(d) ? d : [];
+          Promise.all(prods.map(async (p) => {
+            const images = await resolveProductImages(p);
+            return { ...p, images };
+          })).then(setVendorProducts);
         }
         if (trendRes.status === 'fulfilled') {
           const d = trendRes.value.data || trendRes.value;
@@ -34,9 +42,9 @@ const VendorAnalytics = () => {
     return <div className="p-10 text-center">Loading analytics...</div>;
   }
 
-  const totalSales = Number(vendor?.total_sales || vendor?.totalSales || 0);
-  const commissionRate = Number(vendor?.commission_rate || vendor?.commissionRate || 0);
-  const pendingPayout = Number(vendor?.pending_payout || vendor?.pendingPayout || vendor?.current_balance || 0);
+  const totalSales = Number(vendor?.totalSales || vendor?.total_sales || 0);
+  const commissionRate = Number(vendor?.commissionRate || vendor?.commission_rate || 0);
+  const pendingPayout = Number(vendor?.currentBalance || vendor?.current_balance || vendor?.pending_payout || 0);
 
   const monthlyRevenue = revenueTrend.map(m => ({
     month: m.month || m.label,

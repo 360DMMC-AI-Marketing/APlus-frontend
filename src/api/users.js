@@ -11,3 +11,7 @@ export async function updateProfile(body) {
 export async function changePassword(body) {
   return apiClient.post("/users/me/change-password", body);
 }
+
+export async function getCreditStatus() {
+  return apiClient("/users/me/credit");
+}

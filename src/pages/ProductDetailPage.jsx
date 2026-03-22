@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "../store/cartStore";
 import { getProductById } from "../api/products";
+import toast from "react-hot-toast";
 
 // FDA badge color/label mapping
 const getFdaBadge = (fdaStatus) => {
@@ -94,9 +95,9 @@ const ProductDetailPage = () => {
   const allSuppliers = [
     {
       supplierId: product.supplierId,
-      supplier: product.supplier,
+      supplier: product.supplierName || product.supplier || '',
       price: product.price,
-      stock: product.stock,
+      stock: product.stockQuantity ?? product.stock ?? 0,
       rating: 4.8,
       isPrimary: true,
     },
@@ -120,11 +121,12 @@ const ProductDetailPage = () => {
         stock: activeSupplier.stock ?? product.stock ?? 0,
         supplier: activeSupplier.supplier || '',
         supplierId: activeSupplier.supplierId || '',
-        image: product.image || '/placeholder.svg',
+        image: product.images?.[0] || '/placeholder.svg',
         category: product.category || '',
       },
       quantity,
     );
+    toast.success(`${product.name} added to cart (${quantity})`);
     navigate("/cart");
   };
 
@@ -153,7 +155,7 @@ const ProductDetailPage = () => {
           <div>
             <div className="glass-card p-6 relative">
               <img
-                src={product.image || "/placeholder.svg"}
+                src={product.images?.[0] || "/placeholder.svg"}
                 alt={product.name}
                 className="w-full h-96 object-cover rounded-lg"
               />

@@ -33,8 +33,8 @@ const VendorSettings = () => {
           ? `${v.address.street || ''}, ${v.address.city || ''}, ${v.address.state || ''}`
           : (v.address || '');
         setProfile({
-          contactName: v.contact_name || v.contactName || '',
-          email: v.contact_email || v.email || '',
+          contactName: v.contactName || v.contact_name || '',
+          email: v.contactEmail || v.contact_email || v.email || '',
           phone: v.phone || '',
           website: v.website || '',
           address: addr,
@@ -48,8 +48,8 @@ const VendorSettings = () => {
     e.preventDefault();
     try {
       await updateSupplierProfile({
-        contact_name: profile.contactName,
-        contact_email: profile.email,
+        contactName: profile.contactName,
+        contactEmail: profile.email,
         phone: profile.phone,
         website: profile.website,
       });
@@ -92,12 +92,12 @@ const VendorSettings = () => {
     return <div className="p-10 text-center">Loading settings...</div>;
   }
 
-  const companyName = vendor?.business_name || vendor?.company || '';
-  const taxId = vendor?.tax_id || '';
-  const commissionRate = Number(vendor?.commission_rate || vendor?.commissionRate || 0);
-  const approvedDate = vendor?.approved_at || vendor?.approvedDate || '';
-  const registeredDate = vendor?.created_at || vendor?.registeredDate || '';
-  const categories = vendor?.product_categories || vendor?.categories || [];
+  const companyName = vendor?.businessName || vendor?.business_name || vendor?.company || '';
+  const taxId = vendor?.taxId || vendor?.tax_id || '';
+  const commissionRate = Number(vendor?.commissionRate || vendor?.commission_rate || 0);
+  const approvedDate = vendor?.approvedAt || vendor?.approved_at || '';
+  const registeredDate = vendor?.createdAt || vendor?.created_at || '';
+  const categories = vendor?.productCategories || vendor?.product_categories || vendor?.categories || [];
   const addressDisplay = typeof vendor?.address === 'object'
     ? `${vendor.address.street || ''}, ${vendor.address.city || ''}, ${vendor.address.state || ''}`
     : (vendor?.address || '');

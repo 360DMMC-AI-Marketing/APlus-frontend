@@ -4,6 +4,7 @@ import { TrendingUp, DollarSign, ShoppingBag, Package, Clock, ArrowRight, AlertT
 import { useAuthStore } from '../../store/authStore';
 import { getSupplierProfile, getSupplierProducts, getSupplierLowStock } from '../../api/suppliers';
 import { getSupplierOrders } from '../../api/suppliers';
+import { resolveProductImages } from '../../utils/imageHelper';
 
 const VendorDashboard = () => {
   const { user } = useAuthStore();
@@ -21,17 +22,25 @@ const VendorDashboard = () => {
       getSupplierLowStock(),
     ])
       .then(([profRes, prodRes, ordRes, lowRes]) => {
-        if (profRes.status === 'fulfilled') setVendor(profRes.value.data || profRes.value);
+        if (profRes.status === 'fulfilled') {
+          const d = profRes.value;
+          setVendor(d.data || d);
+        }
         if (prodRes.status === 'fulfilled') {
-          const d = prodRes.value.data || prodRes.value;
-          setVendorProducts(Array.isArray(d) ? d : []);
+          const d = prodRes.value.products || prodRes.value.data || prodRes.value;
+          const prods = Array.isArray(d) ? d : [];
+          // Resolve images in background
+          Promise.all(prods.map(async (p) => {
+            const images = await resolveProductImages(p);
+            return { ...p, images };
+          })).then(setVendorProducts);
         }
         if (ordRes.status === 'fulfilled') {
           const d = ordRes.value.data || ordRes.value;
           setVendorOrders(Array.isArray(d) ? d : []);
         }
         if (lowRes.status === 'fulfilled') {
-          const d = lowRes.value.data || lowRes.value;
+          const d = lowRes.value.products || lowRes.value.data || lowRes.value;
           setLowStockProducts(Array.isArray(d) ? d : []);
         }
       })
@@ -42,11 +51,11 @@ const VendorDashboard = () => {
     return <div className="p-10 text-center">Loading dashboard...</div>;
   }
 
-  const vendorName = vendor?.business_name || vendor?.name || user?.name || 'Vendor';
-  const commissionRate = Number(vendor?.commission_rate || vendor?.commissionRate || 0);
-  const totalSales = Number(vendor?.total_sales || vendor?.totalSales || 0);
-  const pendingPayout = Number(vendor?.pending_payout || vendor?.pendingPayout || vendor?.current_balance || 0);
-  const categories = vendor?.product_categories || vendor?.categories || [];
+  const vendorName = vendor?.businessName || vendor?.business_name || vendor?.name || user?.name || 'Vendor';
+  const commissionRate = Number(vendor?.commissionRate || vendor?.commission_rate || 0);
+  const totalSales = Number(vendor?.totalSales || vendor?.total_sales || 0);
+  const pendingPayout = Number(vendor?.currentBalance || vendor?.current_balance || vendor?.pending_payout || 0);
+  const categories = vendor?.productCategories || vendor?.product_categories || vendor?.categories || [];
 
   const stats = [
     {
@@ -140,13 +149,13 @@ const VendorDashboard = () => {
           ) : (
             <div className="space-y-3">
               {vendorOrders.slice(0, 5).map((order, idx) => {
-                const payout = Number(order.supplier_payout || order.supplierPayout || order.total_amount || 0);
-                const commission = Number(order.commission || order.commission_amount || 0);
+                const payout = Number(order.payoutAmount || order.supplier_payout || order.total_amount || 0);
+                const commission = Number(order.commissionAmount || order.commission_amount || 0);
                 return (
                   <div key={order.id || idx} className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-neutral text-sm">{order.order_number || `Order #${idx + 1}`}</p>
-                      <p className="text-xs text-gray-500">{(order.items || order.order_items || []).length} item(s)</p>
+                      <p className="font-semibold text-neutral text-sm">{order.orderNumber || order.order_number || `Order #${idx + 1}`}</p>
+                      <p className="text-xs text-gray-500">{order.itemCount || (order.items || []).length} item(s)</p>
                       {commission > 0 && <p className="text-xs text-gray-400">Commission: ${commission.toFixed(2)}</p>}
                     </div>
                     <div className="text-right">
@@ -176,7 +185,7 @@ const VendorDashboard = () => {
           </div>
           <div className="space-y-3">
             {vendorProducts.slice(0, 5).map((product) => {
-              const stock = product.stock_quantity ?? product.stock ?? 0;
+              const stock = product.stockQuantity ?? product.stock_quantity ?? product.stock ?? 0;
               return (
                 <div key={product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <img src={product.images?.[0] || product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
@@ -235,7 +244,7 @@ const VendorDashboard = () => {
                 <img src={product.images?.[0] || product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
                 <div className="min-w-0">
                   <p className="font-semibold text-neutral text-sm truncate">{product.name}</p>
-                  <p className="text-xs text-orange-600 font-semibold">Only {product.stock_quantity ?? product.stock} left</p>
+                  <p className="text-xs text-orange-600 font-semibold">Only {product.stockQuantity ?? product.stock_quantity ?? product.stock ?? 0} left</p>
                 </div>
               </div>
             ))}

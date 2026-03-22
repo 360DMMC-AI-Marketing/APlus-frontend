@@ -4,11 +4,10 @@ export async function getBackendCart() {
   return apiClient("/cart");
 }
 
-export async function addCartItem(productId, quantity, supplierId) {
+export async function addCartItem(productId, quantity) {
   return apiClient.post("/cart/items", {
-    productId,
-    quantity,
-    supplierId,
+    productId: String(productId),
+    quantity: parseInt(quantity, 10),
   });
 }
 
@@ -33,8 +32,7 @@ export async function syncCartToBackend(items) {
   for (const item of items) {
     await addCartItem(
       item.id,
-      item.quantity,
-      item.supplierId
+      item.quantity
     );
   }
 }

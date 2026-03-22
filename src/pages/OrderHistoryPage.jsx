@@ -94,7 +94,7 @@ const OrderHistoryPage = () => {
   useEffect(() => {
     getOrders()
       .then((data) => {
-        const list = data.data || data;
+        const list = data.orders || data.data || data;
         setOrders(Array.isArray(list) ? list : []);
       })
       .catch(() => setOrders([]))
@@ -104,9 +104,12 @@ const OrderHistoryPage = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'delivered': return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'in_transit':
-      case 'shipped': return <Truck className="w-5 h-5 text-blue-600" />;
-      case 'processing': return <Clock className="w-5 h-5 text-yellow-600" />;
+      case 'fully_shipped':
+      case 'partially_shipped': return <Truck className="w-5 h-5 text-blue-600" />;
+      case 'awaiting_fulfillment':
+      case 'payment_confirmed': return <Clock className="w-5 h-5 text-yellow-600" />;
+      case 'cancelled':
+      case 'refunded': return <Package className="w-5 h-5 text-red-600" />;
       default: return <Package className="w-5 h-5 text-gray-600" />;
     }
   };
@@ -114,9 +117,14 @@ const OrderHistoryPage = () => {
   const getStatusText = (status) => {
     switch (status) {
       case 'delivered': return 'Delivered';
-      case 'in_transit':
-      case 'shipped': return 'In Transit';
-      case 'processing': return 'Processing';
+      case 'fully_shipped': return 'Shipped';
+      case 'partially_shipped': return 'Partially Shipped';
+      case 'awaiting_fulfillment': return 'Processing';
+      case 'payment_confirmed': return 'Payment Confirmed';
+      case 'payment_processing': return 'Payment Processing';
+      case 'pending_payment': return 'Pending Payment';
+      case 'cancelled': return 'Cancelled';
+      case 'refunded': return 'Refunded';
       default: return 'Pending';
     }
   };
@@ -124,9 +132,12 @@ const OrderHistoryPage = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'delivered': return 'bg-green-100 text-green-800';
-      case 'in_transit':
-      case 'shipped': return 'bg-blue-100 text-blue-800';
-      case 'processing': return 'bg-yellow-100 text-yellow-800';
+      case 'fully_shipped':
+      case 'partially_shipped': return 'bg-blue-100 text-blue-800';
+      case 'awaiting_fulfillment':
+      case 'payment_confirmed': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled':
+      case 'refunded': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -166,10 +177,9 @@ const OrderHistoryPage = () => {
 
         <div className="space-y-6">
           {orders.map((order, index) => {
-            const items = order.items || order.order_items || [];
-            const addr = order.shipping_address || order.shippingAddress || {};
             const total = Number(order.total_amount || order.total || 0);
             const orderId = order.order_number || order.id;
+            const itemCount = order.item_count || 0;
 
             return (
               <div
@@ -177,12 +187,12 @@ const OrderHistoryPage = () => {
                 className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow animate-slide-up"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="p-6 border-b border-gray-100">
+                <div className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold text-lg text-neutral">{orderId}</h3>
-                        <span className={`badge-status ${getStatusColor(order.status)}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
                           {getStatusIcon(order.status)}
                           {getStatusText(order.status)}
                         </span>
@@ -190,42 +200,16 @@ const OrderHistoryPage = () => {
                       <p className="text-sm text-gray-500">
                         Placed on {new Date(order.created_at || order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
+                      <p className="text-sm text-gray-500 mt-1">{itemCount} {itemCount === 1 ? 'item' : 'items'}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-primary">${total.toFixed(2)}</p>
-                      <p className="text-sm text-gray-500">{items.length} items</p>
                     </div>
                   </div>
                 </div>
-
-                <div className="p-6 space-y-4">
-                  {items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-neutral">{item.name || item.product_name}</h4>
-                        <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
-                      </div>
-                      <p className="font-semibold text-neutral">
-                        ${(Number(item.unit_price || item.price || 0) * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {addr.name && (
-                  <div className="p-6 bg-gray-50 rounded-b-xl">
-                    <h4 className="font-semibold text-sm text-neutral mb-2">Shipping Address</h4>
-                    <div className="text-sm text-gray-600">
-                      <p>{addr.name}</p>
-                      {addr.company && <p>{addr.company}</p>}
-                      {addr.street && <p>{addr.street}</p>}
-                      <p>{addr.city}, {addr.state} {addr.zip}</p>
-                    </div>
-                  </div>
-                )}
 
                 <div className="p-6 border-t border-gray-100 flex gap-3">
-                  {(order.status === 'in_transit' || order.status === 'shipped') && (
+                  {(order.status === 'fully_shipped' || order.status === 'partially_shipped') && (
                     <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                       Track Shipment
                     </button>

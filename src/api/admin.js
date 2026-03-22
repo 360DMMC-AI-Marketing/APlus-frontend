@@ -49,6 +49,22 @@ export async function getAdminProducts(params = {}) {
   return apiClient.get("/admin/products", params);
 }
 
+export async function getAdminPendingProducts(params = {}) {
+  return apiClient.get("/admin/products/pending", params);
+}
+
+export async function approveProduct(id) {
+  return apiClient.put(`/admin/products/${id}/approve`);
+}
+
+export async function rejectProduct(id, body = {}) {
+  return apiClient.put(`/admin/products/${id}/reject`, body);
+}
+
+export async function requestProductChanges(id, body = {}) {
+  return apiClient.put(`/admin/products/${id}/request-changes`, body);
+}
+
 // ── Analytics ──
 export async function getAdminRevenue(params = {}) {
   return apiClient.get("/admin/analytics/revenue", params);

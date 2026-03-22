@@ -27,11 +27,25 @@ export const useAuthStore = create(
       register: async (formData, userType = 'customer') => {
         set({ loading: true, error: null });
         try {
-          await apiRegister({ ...formData, role: userType });
+          // Backend accepts 'customer' or 'supplier' (not 'vendor')
+          const backendRole = userType === 'vendor' ? 'supplier' : userType;
+
+          // Map frontend field names to what backend expects
+          const payload = {
+            email: formData.email,
+            password: formData.password,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            role: backendRole,
+            companyName: formData.companyName || formData.company || undefined,
+            phone: formData.phone || formData.businessPhone || undefined,
+          };
+
+          await apiRegister(payload);
           set({ loading: false });
 
           const messages = {
-            customer: 'Registration successful! You can now log in.',
+            customer: 'Registration successful! Your account is pending admin approval.',
             vendor: 'Vendor application submitted! Our team will review your application and notify you within 2-3 business days.',
           };
 
@@ -55,11 +69,11 @@ export const useAuthStore = create(
         set({ user: null, error: null });
       },
 
-      // Role helpers
+      // Role helpers — backend uses 'supplier' not 'vendor'
       isAdmin: () => get().user?.role === 'admin',
-      isVendor: () => get().user?.role === 'vendor',
+      isVendor: () => get().user?.role === 'supplier',
       isCustomer: () => get().user?.role === 'customer',
-      isSupplier: () => get().user?.role === 'vendor',
+      isSupplier: () => get().user?.role === 'supplier',
     }),
     {
       name: 'auth-storage',

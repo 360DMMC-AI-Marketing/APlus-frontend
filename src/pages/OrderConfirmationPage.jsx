@@ -1,9 +1,18 @@
-import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { CheckCircle, Package, Mail, ArrowRight } from 'lucide-react';
+import { useCartStore } from '../store/cartStore';
 
 const OrderConfirmationPage = () => {
   const { orderId } = useParams();
+  const location = useLocation();
+  const clearCart = useCartStore((state) => state.clearCart);
+
+  useEffect(() => {
+    if (location.state?.clearCart) {
+      clearCart();
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white py-16">

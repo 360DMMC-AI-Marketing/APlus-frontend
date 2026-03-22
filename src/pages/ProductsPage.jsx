@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { CATEGORIES } from "../utils/constants";
 import { useCartStore } from "../store/cartStore";
 import { getProducts } from "../api/products";
+import toast from "react-hot-toast";
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -33,7 +35,7 @@ const ProductsPage = () => {
     let results = products.filter((product) => {
       const name = product.name || "";
       const desc = product.description || "";
-      const supplier = product.supplier || "";
+      const supplier = product.supplierName || product.supplier || "";
 
       const matchesSearch =
         name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -49,7 +51,7 @@ const ProductsPage = () => {
         (product.price >= selectedPriceRange.min &&
           product.price < selectedPriceRange.max);
 
-      const stock = product.stock_quantity ?? product.stock ?? 0;
+      const stock = product.stockQuantity ?? product.stock_quantity ?? product.stock ?? 0;
       const matchesStock = !inStockOnly || stock > 0;
 
       return matchesSearch && matchesCategory && matchesPrice && matchesStock;
@@ -69,7 +71,7 @@ const ProductsPage = () => {
         break;
       case "stock":
         results = [...results].sort(
-          (a, b) => (b.stock_quantity ?? b.stock ?? 0) - (a.stock_quantity ?? a.stock ?? 0),
+          (a, b) => (b.stockQuantity ?? b.stock_quantity ?? b.stock ?? 0) - (a.stockQuantity ?? a.stock_quantity ?? a.stock ?? 0),
         );
         break;
     }
@@ -132,20 +134,34 @@ const ProductsPage = () => {
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-2 gap-4">
             {filteredProducts.map((product) => (
-              <div key={product.id} className="border p-4 rounded">
-                <h3>{product.name}</h3>
-                <p>${Number(product.price).toFixed(2)}</p>
+              <div key={product.id} className="border rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                <Link to={`/products/${product.id}`}>
+                  <img
+                    src={product.images?.[0] || '/placeholder.svg'}
+                    alt={product.name}
+                    className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
+                  />
+                </Link>
+                <div className="p-4">
+                <Link to={`/products/${product.id}`}>
+                  <h3 className="font-semibold text-neutral hover:text-primary cursor-pointer mb-1">{product.name}</h3>
+                </Link>
+                <p className="text-lg font-bold text-primary mb-3">${Number(product.price).toFixed(2)}</p>
 
-                <button onClick={() => addItem({
-                  id: product.id,
-                  name: product.name || '',
-                  price: Number(product.price) || 0,
-                  stock: product.stock_quantity ?? product.stock ?? 0,
-                  supplier: product.supplier || '',
-                  supplierId: product.supplierId || product.supplier_id || '',
-                  image: product.image || '/placeholder.svg',
-                  category: product.category || '',
-                }, 1)}>Add to Cart</button>
+                <button className="w-full btn-medical text-sm py-2" onClick={() => {
+                  addItem({
+                    id: product.id,
+                    name: product.name || '',
+                    price: Number(product.price) || 0,
+                    stock: product.stockQuantity ?? product.stock_quantity ?? product.stock ?? 0,
+                    supplier: product.supplierName || product.supplier || '',
+                    supplierId: product.supplierId || product.supplier_id || '',
+                    image: product.images?.[0] || '/placeholder.svg',
+                    category: product.category || '',
+                  }, 1);
+                  toast.success(`${product.name} added to cart`);
+                }}>Add to Cart</button>
+                </div>
               </div>
             ))}
           </div>

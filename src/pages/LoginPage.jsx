@@ -60,7 +60,7 @@ const LoginPage = () => {
                 <p>
                   <strong>Admin:</strong> admin@aplusmed.com
                 </p>
-                <p className="text-blue-600 mt-2">Password: any password</p>
+                <p className="text-blue-600 mt-2">Password: Test123!</p>
               </div>
             </div>
           )}
@@ -123,12 +123,12 @@ const LoginPage = () => {
                 />
                 <span className="ml-2 text-sm text-gray-600">Remember me</span>
               </label>
-              <a
-                href="#"
+              <Link
+                to="/forgot-password"
                 className="text-sm text-primary hover:text-primary/80"
               >
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <button
