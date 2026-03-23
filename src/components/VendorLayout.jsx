@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, ShoppingBag, BarChart2, Settings, LogOut, Menu, X, Store } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import logo from '../assets/APMD Logo_WHITE.png';
+import logo from '../assets/APMD_Logo_WHITE.png';
 
 const VendorLayout = () => {
   const location = useLocation();

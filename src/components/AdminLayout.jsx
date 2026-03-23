@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package as ProductIcon, Users, Store, BarChart2, Shield, LogOut, Menu, X, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import logo from '../assets/APMD Logo_WHITE.png';
+import logo from '../assets/APMD_Logo_WHITE.png';
 import { getAdminSuppliers } from '../api/admin';
 
 const AdminLayout = () => {
