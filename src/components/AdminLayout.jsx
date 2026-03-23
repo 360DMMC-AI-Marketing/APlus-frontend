@@ -1,30 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package as ProductIcon, Users, Store, BarChart2, Shield, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package as ProductIcon, Users, Store, BarChart2, Shield, LogOut, Menu, X, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import logo from '../assets/APMD Logo_WHITE.png';
-import { mockPendingVendors } from '../utils/mockData';
+import { getAdminSuppliers } from '../api/admin';
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { logout, user } = useAuthStore();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    getAdminSuppliers({ status: 'pending', limit: 1 })
+      .then((data) => {
+        const suppliers = data.data || data;
+        setPendingCount(Array.isArray(suppliers) ? suppliers.length : data.total || 0);
+      })
+      .catch(() => setPendingCount(0));
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const pendingCount = mockPendingVendors.filter(v => v.status === 'pending').length;
-
   const menuItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/analytics', icon: BarChart2, label: 'Analytics' },
     { path: '/admin/products', icon: ProductIcon, label: 'Products' },
+    { path: '/admin/orders', icon: ShoppingBag, label: 'Orders' },
     { path: '/admin/vendors', icon: Store, label: 'Vendors', badge: pendingCount > 0 ? pendingCount : null },
     { path: '/admin/users', icon: Users, label: 'Users' },
-    { path: '/admin/compliance', icon: Shield, label: 'Compliance' }, // B-03 fix: added missing nav item
+    { path: '/admin/compliance', icon: Shield, label: 'Compliance' },
   ];
 
   const isActive = (path) => {

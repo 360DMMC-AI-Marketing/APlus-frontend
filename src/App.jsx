@@ -27,6 +27,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import VendorAgreementPage from './pages/VendorAgreementPage';
 import CommissionPolicyPage from './pages/CommissionPolicyPage';
+import PayPalReturnPage from './pages/PayPalReturnPage';
 
 // Admin Pages
 import AdminLayout from './components/AdminLayout';
@@ -34,6 +35,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminVendors from './pages/admin/AdminVendors';
+import AdminOrders from './pages/admin/AdminOrders';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 import AdminCompliance from './pages/admin/AdminCompliance'; // B-03 fix: was imported but never routed
 
@@ -43,6 +45,7 @@ import VendorProducts from './pages/vendor/VendorProducts';
 import VendorOrders from './pages/vendor/VendorOrders';
 import VendorAnalytics from './pages/vendor/VendorAnalytics';
 import VendorSettings from './pages/vendor/VendorSettings';
+import { Toaster } from 'react-hot-toast';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false, vendorOnly = false }) => {
@@ -66,6 +69,7 @@ const ProtectedRoute = ({ children, adminOnly = false, vendorOnly = false }) => 
 function App() {
   return (
     <Router>
+      <Toaster position="top-right" toastOptions={{ duration: 2500, style: { borderRadius: '12px', padding: '12px 16px', fontSize: '14px' } }} />
       <div className="min-h-screen flex flex-col">
         <Routes>
           
@@ -237,6 +241,18 @@ function App() {
             </ProtectedRoute>
           } />
 
+          <Route path="/orders/paypal-success" element={
+            <ProtectedRoute>
+              <PayPalReturnPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/orders/paypal-cancel" element={
+            <ProtectedRoute>
+              <Navigate to="/cart" replace />
+            </ProtectedRoute>
+          } />
+
           <Route path="/order-confirmation/:orderId" element={
             <ProtectedRoute>
               <>
@@ -295,6 +311,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
             <Route path="vendors" element={<AdminVendors />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="compliance" element={<AdminCompliance />} /> {/* B-03 fix: was missing */}

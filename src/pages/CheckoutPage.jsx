@@ -4,20 +4,18 @@ import { useForm } from 'react-hook-form';
 import { MapPin, CreditCard, Package } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
-
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { items, getTotal } = useCartStore();
   const { user } = useAuthStore();
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
-      fullName: user?.name || '',
+      fullName: user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
       email: user?.email || '',
-      company: user?.company || '',
+      company: user?.company || user?.companyName || '',
     }
   });
 
-  // B-05 fix: navigate side effect belongs in useEffect, not in render body
   useEffect(() => {
     if (items.length === 0) {
       navigate('/cart');
@@ -25,7 +23,6 @@ const CheckoutPage = () => {
   }, [items.length, navigate]);
 
   const onSubmit = (data) => {
-    // B-A01 note: passing via router state avoids sessionStorage PII (architectural fix, separate ticket)
     navigate('/payment', { state: { shippingInfo: data } });
   };
 

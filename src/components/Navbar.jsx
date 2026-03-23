@@ -56,7 +56,7 @@ const Navbar = () => {
               <Link to="/cart" className="relative p-2 text-gray-700 hover:text-primary transition-colors">
                 <ShoppingCart className="w-6 h-6" />
                 {itemsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {itemsCount}
                   </span>
                 )}
@@ -70,9 +70,9 @@ const Navbar = () => {
                   className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">{user.name?.[0]?.toUpperCase()}</span>
+                    <span className="text-white text-xs font-bold">{(user.firstName || user.name || user.email || '?')[0].toUpperCase()}</span>
                   </div>
-                  <span className="text-sm text-gray-700 max-w-[120px] truncate">{user.name}</span>
+                  <span className="text-sm text-gray-700 max-w-[120px] truncate">{user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.name || user.email}</span>
                 </button>
 
                 {userMenuOpen && (

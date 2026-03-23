@@ -1,122 +1,225 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CreditCard, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useCartStore } from '../store/cartStore';
+import { createOrder } from '../api/orders';
+import { syncCartToBackend } from '../api/cart';
+import { createPaymentIntent, confirmPayment, createPayPalOrder, capturePayPalPayment, createNet30Payment } from '../api/payments';
+import { getCreditStatus } from '../api/users';
+import { stripePromise } from '../lib/stripe';
+
+const CARD_ELEMENT_OPTIONS = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#1a1a2e',
+      fontFamily: 'Inter, sans-serif',
+      '::placeholder': { color: '#9ca3af' },
+    },
+    invalid: { color: '#dc2626' },
+  },
+};
+
+const StripeCardForm = ({ cardholderName, setCardholderName, processing, finalTotal, onSubmit }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  return (
+    <form onSubmit={(e) => onSubmit(e, stripe, elements)} className="space-y-4">
+      <div>
+        <label className="block text-sm font-semibold text-secondary mb-2">Cardholder Name</label>
+        <input
+          type="text"
+          value={cardholderName}
+          onChange={(e) => setCardholderName(e.target.value)}
+          placeholder="John Smith"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
+          disabled={processing}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-secondary mb-2">Card Details</label>
+        <div className="px-4 py-3 border-2 border-gray-200 rounded-lg focus-within:border-primary">
+          <CardElement options={CARD_ELEMENT_OPTIONS} />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={processing || !stripe}
+        className="w-full mt-6 bg-primary text-white py-4 rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {processing ? (
+          <>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Processing Payment...
+          </>
+        ) : (
+          <>
+            <Lock className="w-5 h-5" />
+            Pay ${finalTotal.toFixed(2)}
+          </>
+        )}
+      </button>
+    </form>
+  );
+};
 
 const PaymentPage = () => {
   const navigate = useNavigate();
-  const { items, getTotal, getItemsCount, clearCart } = useCartStore();
-  
-  const [paymentMethod, setPaymentMethod] = useState('stripe'); // 'stripe' | 'paypal' | 'net30'
+  const location = useLocation();
+  const shippingInfo = location.state?.shippingInfo || {};
+  const { items, getTotal } = useCartStore();
+
+  const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
 
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardholderName: '',
-  });
+  const [cardholderName, setCardholderName] = useState('');
 
-  const [net30Eligible, setNet30Eligible] = useState(true); // TODO(backend): fetch from GET /users/me/credit
-  // B-08 fix: credit limit extracted to variable — replace with API value when backend is ready
-  // TODO(backend): const creditLimit = net30CreditData?.limit ?? NET30_CREDIT_LIMIT_PLACEHOLDER;
-  const NET30_CREDIT_LIMIT_PLACEHOLDER = 50000;
+  const [net30Eligible, setNet30Eligible] = useState(false);
+  const [creditInfo, setCreditInfo] = useState({ limit: 0, used: 0, available: 0 });
 
-  const total = getTotal();
-  const tax = total * 0.08;
-  const finalTotal = total + tax;
+  const subtotal = getTotal();
+  const shipping = 25.00;
+  const tax = subtotal * 0.08;
+  const finalTotal = subtotal + shipping + tax;
 
-  // B-06 fix: redirect to cart when cart is empty (via useEffect, not render body)
   useEffect(() => {
     if (items.length === 0) {
-      navigate('/cart');
+      navigate('/cart', { replace: true });
     }
-  }, [items.length, navigate]);
+  }, []);
 
-  const handleNet30Payment = () => {
-    setProcessing(true);
-    setError('');
-
-    // Simulate Net 30 application/approval
-    setTimeout(() => {
-      const orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      clearCart(); // B-02 fix: clear cart after successful order
-      navigate(`/order-confirmation/${orderId}`, { 
-        state: { 
-          paymentMethod: 'net30',
-          amount: finalTotal 
-        } 
+  useEffect(() => {
+    getCreditStatus()
+      .then((data) => {
+        const credit = data.data || data;
+        setNet30Eligible(!!credit.eligible);
+        setCreditInfo({
+          limit: credit.limit || 0,
+          used: credit.used || 0,
+          available: credit.available || 0,
+        });
+      })
+      .catch(() => {
+        setNet30Eligible(false);
       });
-    }, 1500);
+  }, []);
+
+  // Step 1: Sync cart to backend then create order
+  const placeOrder = async () => {
+    await syncCartToBackend(items);
+    const data = await createOrder(shippingInfo, shippingInfo.instructions || '');
+    const order = data.order || data.data || data;
+    return order;
   };
 
-  const formatCardNumber = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-    for (let i = 0; i < match.length; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    return parts.length ? parts.join(' ') : value;
-  };
-
-  const formatExpiryDate = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + (v.length > 2 ? '/' + v.substring(2, 4) : '');
-    }
-    return v;
-  };
-
-  const handleStripePayment = async (e) => {
+  // ── STRIPE: order → intent → confirm card via Elements → confirm backend ──
+  const handleStripePayment = async (e, stripe, elements) => {
     e.preventDefault();
     setError('');
-    
-    if (!cardDetails.cardNumber || !cardDetails.expiryDate || !cardDetails.cvv || !cardDetails.cardholderName) {
-      setError('Please fill in all card details');
+
+    if (!stripe || !elements) {
+      setError('Stripe is not ready. Please wait.');
       return;
     }
 
-    if (cardDetails.cardNumber.replace(/\s/g, '').length !== 16) {
-      setError('Invalid card number');
-      return;
-    }
-
-    if (cardDetails.cvv.length !== 3 && cardDetails.cvv.length !== 4) {
-      setError('Invalid CVV');
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      setError('Card input not found');
       return;
     }
 
     setProcessing(true);
 
-    setTimeout(() => {
-      const orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      clearCart(); // B-02 fix: clear cart after successful order
-      navigate(`/order-confirmation/${orderId}`, { 
-        state: { 
-          paymentMethod: 'stripe',
-          amount: finalTotal 
-        } 
+    try {
+      // 1. Create the order
+      const order = await placeOrder();
+
+      // 2. Create Stripe PaymentIntent
+      const intentData = await createPaymentIntent(order.id);
+      const { clientSecret } = intentData;
+
+      // 3. Confirm with Stripe Elements
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: cardholderName || undefined,
+          },
+        },
       });
-    }, 2000);
+
+      if (stripeError) {
+        setError(stripeError.message);
+        return;
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        await confirmPayment(order.id);
+        navigate(`/order-confirmation/${order.id}`, {
+          state: { paymentMethod: 'stripe', amount: finalTotal, clearCart: true },
+          replace: true,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err?.data?.message || err.message || 'Payment failed');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const handlePayPalPayment = () => {
+  // ── PAYPAL: order → create paypal order → redirect → capture ──
+  const handlePayPalPayment = async () => {
     setProcessing(true);
     setError('');
 
-    setTimeout(() => {
-      const orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-      clearCart(); // B-02 fix: clear cart after successful order
-      navigate(`/order-confirmation/${orderId}`, { 
-        state: { 
-          paymentMethod: 'paypal',
-          amount: finalTotal 
-        } 
+    try {
+      const order = await placeOrder();
+      const paypalData = await createPayPalOrder(order.id);
+
+      if (paypalData.approvalUrl) {
+        // Store orderId for capture on return
+        sessionStorage.setItem('pendingPayPalOrderId', order.id);
+        window.location.href = paypalData.approvalUrl;
+      } else {
+        // Fallback: capture immediately if no redirect needed
+        await capturePayPalPayment(order.id);
+        navigate(`/order-confirmation/${order.id}`, {
+          state: { paymentMethod: 'paypal', amount: finalTotal, clearCart: true },
+          replace: true,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err?.data?.message || err.message || 'PayPal payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ── NET30: order → net30 payment ──
+  const handleNet30Payment = async () => {
+    setProcessing(true);
+    setError('');
+
+    try {
+      const order = await placeOrder();
+      await createNet30Payment(order.id);
+      navigate(`/order-confirmation/${order.id}`, {
+        state: { paymentMethod: 'net30', amount: finalTotal, clearCart: true },
+        replace: true,
       });
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      setError(err?.data?.message || err.message || 'Failed to place order');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -140,12 +243,13 @@ const PaymentPage = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('stripe')}
+                    onClick={() => !processing && setPaymentMethod('stripe')}
+                    disabled={processing}
                     className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
                       paymentMethod === 'stripe'
                         ? 'border-primary bg-primary/5'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <CreditCard className={`w-8 h-8 ${paymentMethod === 'stripe' ? 'text-primary' : 'text-gray-400'}`} />
                     <span className={`text-sm font-semibold ${paymentMethod === 'stripe' ? 'text-primary' : 'text-gray-600'}`}>
@@ -156,12 +260,13 @@ const PaymentPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('paypal')}
+                    onClick={() => !processing && setPaymentMethod('paypal')}
+                    disabled={processing}
                     className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
                       paymentMethod === 'paypal'
                         ? 'border-primary bg-primary/5'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <svg className={`w-8 h-8 ${paymentMethod === 'paypal' ? 'text-primary' : 'text-gray-400'}`} viewBox="0 0 24 24" fill="currentColor">
                       <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .76-.653h8.53c2.347 0 4.203.522 5.52 1.551 1.303 1.015 1.936 2.526 1.936 4.62 0 1.756-.45 3.287-1.338 4.55-.903 1.287-2.166 2.22-3.753 2.773-1.554.542-3.366.815-5.391.815H9.346a.77.77 0 0 0-.76.653l-.547 3.658a.641.641 0 0 1-.634.74z"/>
@@ -174,8 +279,8 @@ const PaymentPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('net30')}
-                    disabled={!net30Eligible}
+                    onClick={() => !processing && setPaymentMethod('net30')}
+                    disabled={!net30Eligible || processing}
                     className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
                       paymentMethod === 'net30'
                         ? 'border-primary bg-primary/5'
@@ -206,78 +311,13 @@ const PaymentPage = () => {
               )}
 
               {paymentMethod === 'stripe' && (
-                <form onSubmit={handleStripePayment} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-2">Cardholder Name</label>
-                    <input
-                      type="text"
-                      value={cardDetails.cardholderName}
-                      onChange={(e) => setCardDetails({ ...cardDetails, cardholderName: e.target.value })}
-                      placeholder="John Smith"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                      disabled={processing}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-2">Card Number</label>
-                    <input
-                      type="text"
-                      value={cardDetails.cardNumber}
-                      onChange={(e) => setCardDetails({ ...cardDetails, cardNumber: formatCardNumber(e.target.value) })}
-                      placeholder="1234 5678 9012 3456"
-                      maxLength="19"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none font-mono"
-                      disabled={processing}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-secondary mb-2">Expiry Date</label>
-                      <input
-                        type="text"
-                        value={cardDetails.expiryDate}
-                        onChange={(e) => setCardDetails({ ...cardDetails, expiryDate: formatExpiryDate(e.target.value) })}
-                        placeholder="MM/YY"
-                        maxLength="5"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none font-mono"
-                        disabled={processing}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-secondary mb-2">CVV</label>
-                      <input
-                        type="text"
-                        value={cardDetails.cvv}
-                        onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                        placeholder="123"
-                        maxLength="4"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none font-mono"
-                        disabled={processing}
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={processing}
-                    className="w-full mt-6 bg-primary text-white py-4 rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {processing ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Processing Payment...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-5 h-5" />
-                        Pay ${finalTotal.toFixed(2)}
-                      </>
-                    )}
-                  </button>
-                </form>
+                <StripeCardForm
+                  cardholderName={cardholderName}
+                  setCardholderName={setCardholderName}
+                  processing={processing}
+                  finalTotal={finalTotal}
+                  onSubmit={handleStripePayment}
+                />
               )}
 
               {paymentMethod === 'paypal' && (
@@ -370,11 +410,11 @@ const PaymentPage = () => {
                       <div className="grid grid-cols-2 gap-4 mb-3">
                         <div>
                           <span className="text-xs text-gray-600 block mb-1">Total Credit Limit</span>
-                          <span className="font-bold text-secondary text-xl">${NET30_CREDIT_LIMIT_PLACEHOLDER.toLocaleString()}</span>
+                          <span className="font-bold text-secondary text-xl">${creditInfo.limit.toLocaleString()}</span>
                         </div>
                         <div>
                           <span className="text-xs text-gray-600 block mb-1">Available Credit</span>
-                          <span className="font-bold text-green-600 text-xl">${NET30_CREDIT_LIMIT_PLACEHOLDER.toLocaleString()}</span>
+                          <span className="font-bold text-green-600 text-xl">${creditInfo.available.toLocaleString()}</span>
                         </div>
                       </div>
                       <div className="pt-3 border-t border-gray-200">
@@ -384,7 +424,7 @@ const PaymentPage = () => {
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-gray-600">Remaining After Purchase:</span>
-                          <span className="font-semibold text-green-600">${(NET30_CREDIT_LIMIT_PLACEHOLDER - finalTotal).toFixed(2)}</span>
+                          <span className="font-semibold text-green-600">${(creditInfo.available - finalTotal).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -463,7 +503,11 @@ const PaymentPage = () => {
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-semibold text-secondary">${total.toFixed(2)}</span>
+                  <span className="font-semibold text-secondary">${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Shipping</span>
+                  <span className="font-semibold text-secondary">${shipping.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax (8%)</span>
@@ -492,4 +536,10 @@ const PaymentPage = () => {
   );
 };
 
-export default PaymentPage;
+const PaymentPageWrapper = () => (
+  <Elements stripe={stripePromise}>
+    <PaymentPage />
+  </Elements>
+);
+
+export default PaymentPageWrapper;

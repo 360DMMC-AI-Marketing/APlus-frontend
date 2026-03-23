@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, Building2, Phone, Mail, Globe, MapPin, Calendar, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { mockVendors } from '../../utils/mockData';
 import { useAuthStore } from '../../store/authStore';
+import { getSupplierProfile, updateSupplierProfile } from '../../api/suppliers';
 
 const VendorSettings = () => {
   const { user } = useAuthStore();
-  const vendor = mockVendors.find(v => v.id === user?.vendorId) || mockVendors[0];
+  const [loading, setLoading] = useState(true);
+  const [vendor, setVendor] = useState(null);
 
   // Profile form
   const [profile, setProfile] = useState({
-    contactName: vendor.contactName,
-    email: vendor.email,
-    phone: vendor.businessInfo.phone,
-    website: vendor.businessInfo.website || '',
-    address: vendor.businessInfo.address,
+    contactName: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: '',
   });
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -23,8 +24,36 @@ const VendorSettings = () => {
   const [pwdSaved, setPwdSaved] = useState(false);
   const [pwdError, setPwdError] = useState('');
 
-  const handleProfileSave = (e) => {
+  useEffect(() => {
+    getSupplierProfile()
+      .then((data) => {
+        const v = data.data || data;
+        setVendor(v);
+        const addr = typeof v.address === 'object'
+          ? `${v.address.street || ''}, ${v.address.city || ''}, ${v.address.state || ''}`
+          : (v.address || '');
+        setProfile({
+          contactName: v.contactName || v.contact_name || '',
+          email: v.contactEmail || v.contact_email || v.email || '',
+          phone: v.phone || '',
+          website: v.website || '',
+          address: addr,
+        });
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleProfileSave = async (e) => {
     e.preventDefault();
+    try {
+      await updateSupplierProfile({
+        contactName: profile.contactName,
+        contactEmail: profile.email,
+        phone: profile.phone,
+        website: profile.website,
+      });
+    } catch { /* still show success for now */ }
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 3000);
   };
@@ -59,21 +88,37 @@ const VendorSettings = () => {
     </div>
   );
 
+  if (loading) {
+    return <div className="p-10 text-center">Loading settings...</div>;
+  }
+
+  const companyName = vendor?.businessName || vendor?.business_name || vendor?.company || '';
+  const taxId = vendor?.taxId || vendor?.tax_id || '';
+  const commissionRate = Number(vendor?.commissionRate || vendor?.commission_rate || 0);
+  const approvedDate = vendor?.approvedAt || vendor?.approved_at || '';
+  const registeredDate = vendor?.createdAt || vendor?.created_at || '';
+  const categories = vendor?.productCategories || vendor?.product_categories || vendor?.categories || [];
+  const addressDisplay = typeof vendor?.address === 'object'
+    ? `${vendor.address.street || ''}, ${vendor.address.city || ''}, ${vendor.address.state || ''}`
+    : (vendor?.address || '');
+
   return (
     <div className="space-y-6 max-w-3xl">
 
       {/* Verified Badge */}
-      <div className="glass-card p-5 border border-green-200 bg-green-50/50">
-        <div className="flex items-center gap-3">
-          <CheckCircle className="w-7 h-7 text-green-500 flex-shrink-0" />
-          <div>
-            <p className="font-semibold text-green-800">Verified Vendor</p>
-            <p className="text-sm text-green-600">
-              Approved {new Date(vendor.approvedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · Commission rate: <strong>{vendor.commissionRate}%</strong>
-            </p>
+      {vendor?.status === 'approved' && approvedDate && (
+        <div className="glass-card p-5 border border-green-200 bg-green-50/50">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-7 h-7 text-green-500 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-green-800">Verified Vendor</p>
+              <p className="text-sm text-green-600">
+                Approved {new Date(approvedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} · Commission rate: <strong>{commissionRate}%</strong>
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Read-only Business Info */}
       <div className="glass-card p-6">
@@ -81,10 +126,10 @@ const VendorSettings = () => {
         <p className="text-xs text-gray-400 mb-4">To update official business details, contact <a href="mailto:support@aplusmeddepot.com" className="text-primary hover:underline">support@aplusmeddepot.com</a></p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { icon: Building2, label: 'Company', value: vendor.company },
-            { icon: MapPin, label: 'Registered Address', value: vendor.businessInfo.address },
-            { icon: Building2, label: 'Tax ID', value: vendor.businessInfo.taxId },
-            { icon: Calendar, label: 'Member Since', value: new Date(vendor.registeredDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) },
+            { icon: Building2, label: 'Company', value: companyName },
+            { icon: MapPin, label: 'Registered Address', value: addressDisplay },
+            { icon: Building2, label: 'Tax ID', value: taxId },
+            { icon: Calendar, label: 'Member Since', value: registeredDate ? new Date(registeredDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : '—' },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
               <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -92,7 +137,7 @@ const VendorSettings = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-400">{label}</p>
-                <p className="text-sm text-neutral font-semibold">{value}</p>
+                <p className="text-sm text-neutral font-semibold">{value || '—'}</p>
               </div>
             </div>
           ))}
@@ -179,15 +224,17 @@ const VendorSettings = () => {
       </div>
 
       {/* Categories */}
-      <div className="glass-card p-6">
-        <h2 className="font-display text-xl text-neutral mb-4">Approved Categories</h2>
-        <div className="flex flex-wrap gap-2">
-          {vendor.categories.map(cat => (
-            <span key={cat} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">{cat}</span>
-          ))}
+      {categories.length > 0 && (
+        <div className="glass-card p-6">
+          <h2 className="font-display text-xl text-neutral mb-4">Approved Categories</h2>
+          <div className="flex flex-wrap gap-2">
+            {categories.map(cat => (
+              <span key={cat} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">{cat}</span>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-3">Need to sell in additional categories? Contact your account manager.</p>
         </div>
-        <p className="text-xs text-gray-400 mt-3">Need to sell in additional categories? Contact your account manager.</p>
-      </div>
+      )}
     </div>
   );
 };

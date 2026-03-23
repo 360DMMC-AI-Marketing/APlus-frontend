@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Building2, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Package } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { mockOrders } from '../utils/mockData';
+import { getOrders } from '../api/orders';
+import { updateProfile, changePassword } from '../api/users';
 import { Link } from 'react-router-dom';
 
 const CustomerProfile = () => {
   const { user } = useAuthStore();
+  const [recentOrders, setRecentOrders] = useState([]);
 
   const [profile, setProfile] = useState({
     firstName: user?.name?.split(' ')[0] || '',
@@ -21,21 +23,50 @@ const CustomerProfile = () => {
   const [pwdSaved, setPwdSaved] = useState(false);
   const [pwdError, setPwdError] = useState('');
 
-  const handleProfileSave = (e) => {
+  useEffect(() => {
+    getOrders({ limit: 3 })
+      .then((data) => {
+        const list = data.data || data;
+        setRecentOrders(Array.isArray(list) ? list.slice(0, 3) : []);
+      })
+      .catch(() => setRecentOrders([]));
+  }, []);
+
+  const handleProfileSave = async (e) => {
     e.preventDefault();
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
+    try {
+      await updateProfile({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        phone: profile.phone,
+        companyName: profile.company,
+      });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to update profile');
+    }
   };
 
-  const handlePasswordSave = (e) => {
+  const handlePasswordSave = async (e) => {
     e.preventDefault();
     setPwdError('');
     if (!pwd.current) { setPwdError('Please enter your current password.'); return; }
     if (pwd.newPwd.length < 8) { setPwdError('New password must be at least 8 characters.'); return; }
     if (pwd.newPwd !== pwd.confirm) { setPwdError('Passwords do not match.'); return; }
-    setPwdSaved(true);
-    setPwd({ current: '', newPwd: '', confirm: '' });
-    setTimeout(() => setPwdSaved(false), 3000);
+    try {
+      await changePassword({
+        currentPassword: pwd.current,
+        newPassword: pwd.newPwd,
+      });
+      setPwdSaved(true);
+      setPwd({ current: '', newPwd: '', confirm: '' });
+      setTimeout(() => setPwdSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setPwdError(err.message || 'Failed to change password');
+    }
   };
 
   const PwdInput = ({ field, label }) => (
@@ -56,8 +87,6 @@ const CustomerProfile = () => {
       </div>
     </div>
   );
-
-  const recentOrders = mockOrders.slice(0, 3);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white to-white py-10 px-4">
@@ -91,17 +120,17 @@ const CustomerProfile = () => {
                       <Package className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold text-neutral text-sm">{order.id}</p>
-                      <p className="text-xs text-gray-400">{new Date(order.date).toLocaleDateString()}</p>
+                      <p className="font-semibold text-neutral text-sm">{order.order_number || order.id}</p>
+                      <p className="text-xs text-gray-400">{new Date(order.created_at || order.date).toLocaleDateString()}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-primary text-sm">${order.total.toFixed(2)}</p>
+                    <p className="font-bold text-primary text-sm">${Number(order.total_amount || order.total || 0).toFixed(2)}</p>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                       order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                      order.status === 'in_transit' ? 'bg-blue-100 text-blue-700' :
+                      order.status === 'in_transit' || order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
                       'bg-yellow-100 text-yellow-700'
-                    }`}>{order.status.replace('_', ' ')}</span>
+                    }`}>{(order.status || '').replace('_', ' ')}</span>
                   </div>
                 </div>
               ))}
