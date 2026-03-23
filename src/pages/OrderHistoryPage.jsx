@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Package, Truck, CheckCircle, Clock, ShoppingBag, Download, RefreshCw } from 'lucide-react';
-import { getOrders } from '../api/orders';
+import { getOrders, getOrderById } from '../api/orders';
 
-// Generate a simple HTML invoice and trigger browser print-to-PDF
-const downloadInvoice = (order) => {
+// Fetch full order detail then generate HTML invoice for print-to-PDF
+const downloadInvoice = async (order) => {
+  let fullOrder = order;
+  if (!order.items && !order.order_items) {
+    try {
+      const data = await getOrderById(order.id);
+      fullOrder = data.order || data;
+    } catch {
+      fullOrder = order;
+    }
+  }
+  generateInvoiceHtml(fullOrder);
+};
+
+const generateInvoiceHtml = (order) => {
   const addr = order.shipping_address || order.shippingAddress || {};
   const items = order.items || order.order_items || [];
   const total = Number(order.total_amount || order.total || 0);

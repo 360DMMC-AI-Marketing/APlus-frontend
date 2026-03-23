@@ -27,6 +27,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmailVerificationPage from './pages/EmailVerificationPage';
 import VendorAgreementPage from './pages/VendorAgreementPage';
 import CommissionPolicyPage from './pages/CommissionPolicyPage';
+import PayPalReturnPage from './pages/PayPalReturnPage';
 
 // Admin Pages
 import AdminLayout from './components/AdminLayout';
@@ -237,6 +238,18 @@ function App() {
                 </main>
                 <Footer />
               </>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/orders/paypal-success" element={
+            <ProtectedRoute>
+              <PayPalReturnPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/orders/paypal-cancel" element={
+            <ProtectedRoute>
+              <Navigate to="/cart" replace />
             </ProtectedRoute>
           } />
 
