@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import logo from '../assets/APMD LOGO_WHITE.png';
+import logo from '../assets/APMD_Logo_WHITE.png';
 
 const Footer = () => {
   const { user } = useAuthStore();
