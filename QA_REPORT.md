@@ -847,8 +847,8 @@ Fixed response parsing and added automatic item detail fetching. Orders now show
 **Vendor registration fields — NOT FIXED (backend)**
 The Zod validator in auth.validator.ts still only accepts 6 fields for supplier registration (email, password, firstName, lastName, phone, role). Extra fields (taxId, businessAddress, categories, website, etc.) are silently stripped. The frontend sends them correctly but the backend drops them. Backend dev needs to update the validator, controller, and service. The database columns already exist.
 
-**PayPal payment — NOT WORKING (backend missing credentials)**
-Tested — shows "currently not available" error. The backend .env has NO PayPal credentials at all (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_MODE are all missing). Backend dev needs to add sandbox credentials from developer.paypal.com. Frontend code is wired up correctly — this is purely a backend config issue.
+**PayPal payment — WORKING**
+Initially showed "currently not available" because backend .env had no PayPal credentials. After adding PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, and PAYPAL_MODE=sandbox to backend .env, PayPal payment works. Tested — clicking "Continue with PayPal" successfully creates the order and redirects to PayPal sandbox for approval. Full flow: order creation → PayPal order creation → redirect to PayPal → user approves → redirect back to app.
 
 **Net30 payment — INTENTIONALLY DISABLED**
 Commented out by user in PaymentPage.jsx.
