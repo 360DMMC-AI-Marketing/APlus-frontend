@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const EmailVerificationPage = () => {
   const [searchParams] = useSearchParams();
@@ -13,11 +14,14 @@ const EmailVerificationPage = () => {
 
   useEffect(() => {
     if (token) {
-      // Simulate verification API call
-      setTimeout(() => {
-        setStatus('success');
-        setTimeout(() => navigate('/login'), 3000);
-      }, 2000);
+      apiClient.post('/auth/verify-email', { token })
+        .then(() => {
+          setStatus('success');
+          setTimeout(() => navigate('/login'), 3000);
+        })
+        .catch(() => {
+          setStatus('error');
+        });
     } else {
       setStatus('error');
     }
@@ -32,11 +36,18 @@ const EmailVerificationPage = () => {
     }
   }, [countdown, status]);
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setCanResend(false);
     setCountdown(60);
-    // Simulate resend API call
-    alert('Verification email sent! Check your inbox.');
+    try {
+      const email = searchParams.get('email');
+      if (email) {
+        await apiClient.post('/auth/resend-verification', { email });
+      }
+      alert('Verification email sent! Check your inbox.');
+    } catch {
+      alert('Failed to resend. Please try again later.');
+    }
   };
 
   if (status === 'verifying') {

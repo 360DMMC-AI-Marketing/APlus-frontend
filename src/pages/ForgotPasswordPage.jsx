@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -13,11 +14,15 @@ const ForgotPasswordPage = () => {
     setError('');
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await apiClient.post('/auth/reset-password', { email });
       setSuccess(true);
+    } catch (err) {
+      // Always show success to prevent email enumeration
+      setSuccess(true);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   if (success) {

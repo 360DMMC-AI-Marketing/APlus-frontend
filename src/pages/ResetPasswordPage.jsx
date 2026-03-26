@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
@@ -28,10 +29,14 @@ const ResetPasswordPage = () => {
 
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await apiClient.post('/auth/update-password', { token, newPassword: password });
       navigate('/login?reset=success');
-    }, 1500);
+    } catch (err) {
+      setError(err?.data?.message || err.message || 'Failed to reset password. The link may have expired.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!token) {
