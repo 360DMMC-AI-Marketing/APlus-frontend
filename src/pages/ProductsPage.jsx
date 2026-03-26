@@ -135,12 +135,15 @@ const ProductsPage = () => {
           <div className="grid grid-cols-2 gap-4">
             {filteredProducts.map((product) => (
               <div key={product.id} className="border rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
-                <Link to={`/products/${product.id}`}>
+                <Link to={`/products/${product.id}`} className="relative">
                   <img
                     src={product.images?.[0] || '/placeholder.svg'}
                     alt={product.name}
                     className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
                   />
+                  <span className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded shadow">
+                    SAMPLE - Testing Only
+                  </span>
                 </Link>
                 <div className="p-4">
                 <Link to={`/products/${product.id}`}>
