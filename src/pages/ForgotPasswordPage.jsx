@@ -15,7 +15,7 @@ const ForgotPasswordPage = () => {
     setLoading(true);
 
     try {
-      await apiClient.post('/auth/reset-password', { email });
+      await apiClient.post('/auth/forgot-password', { email });
       setSuccess(true);
     } catch (err) {
       // Always show success to prevent email enumeration
