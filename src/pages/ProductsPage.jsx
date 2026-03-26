@@ -142,7 +142,7 @@ const ProductsPage = () => {
                     className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
                   />
                   <span className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded shadow">
-                    SAMPLE - Testing Only
+                    SAMPLE - Not For Purchase
                   </span>
                 </Link>
                 <div className="p-4">

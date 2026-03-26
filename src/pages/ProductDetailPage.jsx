@@ -155,7 +155,7 @@ const ProductDetailPage = () => {
           <div>
             <div className="glass-card p-6 relative">
               <span className="absolute top-8 left-8 bg-yellow-400 text-yellow-900 text-sm font-bold px-3 py-1.5 rounded shadow z-10">
-                SAMPLE - Testing Only
+                SAMPLE - Not For Purchase
               </span>
               <img
                 src={product.images?.[0] || "/placeholder.svg"}
