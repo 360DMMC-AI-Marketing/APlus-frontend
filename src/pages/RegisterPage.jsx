@@ -25,8 +25,8 @@ const RegisterPage = () => {
     setSuccess('');
     const result = await registerUser(data, accountType);
     if (result.success) {
-      setSuccess(result.message);
-      setTimeout(() => navigate('/login'), 3000);
+      setSuccess(result.message + ' Check your email for a verification code.');
+      setTimeout(() => navigate(`/verify-email?email=${encodeURIComponent(data.email)}`), 2000);
     } else {
       setError(result.error);
     }
