@@ -37,6 +37,11 @@ const Navbar = () => {
             <Link to="/" className="text-gray-700 hover:text-secondary transition-colors">Home</Link>
             <Link to="/products" className="text-gray-700 hover:text-primary transition-colors">Products</Link>
             <Link to="/about" className="text-gray-700 hover:text-secondary transition-colors">About Us</Link>
+            {isAdmin && isAdmin() && (
+              <Link to="/admin" className="text-gray-700 hover:text-primary transition-colors flex items-center gap-1">
+                <LayoutDashboard className="w-4 h-4" /> Admin Dashboard
+              </Link>
+            )}
             {isVendor && isVendor() && (
               <Link to="/vendor" className="text-gray-700 hover:text-primary transition-colors flex items-center gap-1">
                 <Store className="w-4 h-4" /> Vendor Portal

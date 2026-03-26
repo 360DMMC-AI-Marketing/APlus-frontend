@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Store, CheckCircle, AlertCircle, Upload } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useCategories } from '../hooks/useCategories';
 
 const SupplierRegisterPage = () => {
   const [success, setSuccess] = useState('');
@@ -10,6 +11,7 @@ const SupplierRegisterPage = () => {
   const navigate = useNavigate();
   const { register: registerUser, loading } = useAuthStore();
   const { register, handleSubmit, formState: { errors } } = useForm();
+  const { categories } = useCategories();
 
   const onSubmit = async (data) => {
     setError('');
@@ -276,15 +278,15 @@ const SupplierRegisterPage = () => {
               <h2 className="text-xl font-semibold text-neutral mb-4 pb-2 border-b">Product Categories</h2>
               <p className="text-sm text-gray-600 mb-3">Select the categories of products you will be selling:</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {['Surgical Supplies', 'Diagnostic Equipment', 'Personal Protection', 'Laboratory', 'Patient Care', 'Emergency Medical'].map((category) => (
-                  <label key={category} className="flex items-center">
-                    <input 
-                      type="checkbox" 
+                {categories.map((category) => (
+                  <label key={category.id} className="flex items-center">
+                    <input
+                      type="checkbox"
                       {...register('categories')}
-                      value={category}
-                      className="w-4 h-4 text-primary rounded" 
+                      value={category.name}
+                      className="w-4 h-4 text-primary rounded"
                     />
-                    <span className="ml-2 text-sm text-gray-700">{category}</span>
+                    <span className="ml-2 text-sm text-gray-700">{category.name}</span>
                   </label>
                 ))}
               </div>

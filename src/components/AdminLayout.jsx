@@ -3,22 +3,30 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package as ProductIcon, Users, Store, BarChart2, Shield, LogOut, Menu, X, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import logo from '../assets/APMD_Logo_WHITE.png';
-import { getAdminSuppliers } from '../api/admin';
+import { getAdminSuppliers, getAdminPendingProducts } from '../api/admin';
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { logout, user } = useAuthStore();
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingVendorCount, setPendingVendorCount] = useState(0);
+  const [pendingProductCount, setPendingProductCount] = useState(0);
 
   useEffect(() => {
-    getAdminSuppliers({ status: 'pending', limit: 1 })
+    getAdminSuppliers({ status: 'pending' })
       .then((data) => {
-        const suppliers = data.data || data;
-        setPendingCount(Array.isArray(suppliers) ? suppliers.length : data.total || 0);
+        const total = data.pagination?.total ?? (Array.isArray(data.data) ? data.data.length : 0);
+        setPendingVendorCount(total);
       })
-      .catch(() => setPendingCount(0));
+      .catch(() => setPendingVendorCount(0));
+
+    getAdminPendingProducts()
+      .then((data) => {
+        const total = data.pagination?.total ?? (Array.isArray(data.products) ? data.products.length : 0);
+        setPendingProductCount(total);
+      })
+      .catch(() => setPendingProductCount(0));
   }, []);
 
   const handleLogout = () => {
@@ -29,9 +37,9 @@ const AdminLayout = () => {
   const menuItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/analytics', icon: BarChart2, label: 'Analytics' },
-    { path: '/admin/products', icon: ProductIcon, label: 'Products' },
+    { path: '/admin/products', icon: ProductIcon, label: 'Products', badge: pendingProductCount > 0 ? pendingProductCount : null },
     { path: '/admin/orders', icon: ShoppingBag, label: 'Orders' },
-    { path: '/admin/vendors', icon: Store, label: 'Vendors', badge: pendingCount > 0 ? pendingCount : null },
+    { path: '/admin/vendors', icon: Store, label: 'Vendors', badge: pendingVendorCount > 0 ? pendingVendorCount : null },
     { path: '/admin/users', icon: Users, label: 'Users' },
     { path: '/admin/compliance', icon: Shield, label: 'Compliance' },
   ];

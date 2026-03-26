@@ -41,6 +41,19 @@ export const useAuthStore = create(
             phone: formData.phone || formData.businessPhone || undefined,
           };
 
+          // Include vendor/supplier-specific fields when registering as supplier
+          if (backendRole === 'supplier') {
+            payload.taxId = formData.taxId || undefined;
+            payload.businessAddress = formData.businessAddress || undefined;
+            payload.businessPhone = formData.businessPhone || undefined;
+            payload.website = formData.website || undefined;
+            payload.yearsInBusiness = formData.yearsInBusiness ? Number(formData.yearsInBusiness) : undefined;
+            payload.businessLicense = formData.businessLicense || undefined;
+            payload.fdaRegistration = formData.fdaRegistration || undefined;
+            payload.categories = formData.categories || undefined;
+            payload.position = formData.position || undefined;
+          }
+
           await apiRegister(payload);
           set({ loading: false });
 
@@ -66,6 +79,7 @@ export const useAuthStore = create(
       // Logout
       logout: () => {
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         set({ user: null, error: null });
       },
 

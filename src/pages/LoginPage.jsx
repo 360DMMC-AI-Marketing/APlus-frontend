@@ -18,7 +18,14 @@ const LoginPage = () => {
     setError("");
     const result = await login(data.email, data.password);
     if (result.success) {
-      navigate("/products");
+      const { user } = useAuthStore.getState();
+      if (user?.role === 'admin') {
+        navigate("/admin");
+      } else if (user?.role === 'supplier') {
+        navigate("/vendor");
+      } else {
+        navigate("/products");
+      }
     } else {
       setError(result.error);
     }

@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, Truck, Clock, Star, Package } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useCategories } from '../hooks/useCategories';
 
 const HomePage = () => {
   const { user } = useAuthStore();
+  const { categories: apiCategories } = useCategories();
   const features = [
     {
       icon: Shield,
@@ -28,27 +30,11 @@ const HomePage = () => {
     },
   ];
 
-  const categories = [
-    {
-      name: 'Diagnostic Equipment',
-      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
-      count: '150+ Products',
-    },
-    {
-      name: 'Personal Protection',
-      image: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
-      count: '200+ Products',
-    },
-    {
-      name: 'Patient Care',
-      image: 'https://images.unsplash.com/photo-1582719366037-2c4d7c1a0413?w=400',
-      count: '120+ Products',
-    },
-    {
-      name: 'Emergency Medical',
-      image: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
-      count: '80+ Products',
-    },
+  const categoryImages = [
+    'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
+    'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
+    'https://images.unsplash.com/photo-1582719366037-2c4d7c1a0413?w=400',
+    'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
   ];
 
   return (
@@ -149,23 +135,22 @@ const HomePage = () => {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map((category, index) => (
+            {apiCategories.slice(0, 8).map((category, index) => (
               <Link
-                key={index}
-                to="/products"
+                key={category.id}
+                to={`/products?category=${encodeURIComponent(category.name)}`}
                 className="group card-medical animate-slide-up"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={category.image}
+                    src={categoryImages[index % categoryImages.length]}
                     alt={category.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <div className="absolute bottom-4 left-4 text-white">
                     <h3 className="font-semibold text-xl mb-1">{category.name}</h3>
-                    <p className="text-sm text-gray-200">{category.count}</p>
                   </div>
                 </div>
               </Link>

@@ -732,3 +732,129 @@ This is a multi-layer problem:
 *Report generated during QA audit session on 2026-03-23.*
 *Frontend: APlus-frontend (branch: Samia)*
 *Backend: APlusMedDepot-Backend (read-only, no changes made)*
+
+---
+
+## Update — 2026-03-27 (QA Session 2)
+
+### Backend Update
+
+Backend was updated from `develop` branch. New commits pulled:
+- `#50` — normalize product categories with official list
+- `#51` — support comma-separated CORS origins
+- `#52` — sync users table when admin approves/suspends supplier
+- `#53` — switch email verification to 6-digit code
+- `#46` — signed image URLs for supplier/admin + auto-approve customers
+
+**Key backend fix:** Product images now return signed URLs from ALL endpoints (products, supplier products, admin products). Previously only the customer-facing GET /products resolved signed URLs.
+
+### Frontend Changes Made (20 files, +1157 / -418 lines)
+
+**src/api/client.js**
+- Added token refresh logic. On 401 response, automatically attempts to refresh the access token using the stored refresh token. If refresh succeeds, retries the original request. If refresh fails, clears auth and redirects to /login.
+
+**src/store/authStore.js**
+- Added vendor-specific fields to registration payload (taxId, businessAddress, businessPhone, website, yearsInBusiness, businessLicense, fdaRegistration, categories, position) — sent when registering as supplier.
+- Fixed logout to also clear refreshToken from localStorage.
+- Role checks now use 'supplier' (matching backend) instead of 'vendor'.
+
+**src/components/Navbar.jsx**
+- Added "Admin Dashboard" link in desktop nav for admin users.
+- Fixed user display name to use firstName/lastName from backend response.
+
+**src/pages/ProductDetailPage.jsx — Major rewrite**
+- Complete UI redesign to match provided reference screenshots.
+- Added supplier comparison feature: fetches all products and matches by name (case-insensitive) to find same product from different vendors.
+- Comparison box with radio-button supplier selection, "Best Price" and "Featured" badges, star ratings, stock counts.
+- Single-supplier fallback card when only one vendor sells the product.
+- "Selected supplier" summary card with gradient background.
+- Redesigned quantity picker with cleaner styling.
+- "Add to Cart" button shows selected supplier name.
+- Key Features section extracted from product description as bullet points.
+- Specifications section in gray rounded card.
+- Trust badges row (FDA/Certified, Quality Assured, Fast Delivery, Secure Packaging) as bordered white cards.
+- Removed toast notification on add to cart.
+- Font consistency — font-display only on product title, everything else uses font-body (Inter).
+
+**src/pages/ProductsPage.jsx — Major rewrite**
+- Added filter reset button (RefreshCw icon) next to "Filters" heading. Appears only when any filter is active. Clears category, price range, stock filter, sort, and search.
+- Added dynamic categories from useCategories hook instead of hardcoded constants.
+- Added category color coding with CATEGORY_COLORS array.
+- Added inferCategory utility for products without a category.
+- Removed toast notification on add to cart.
+
+**src/pages/OrderHistoryPage.jsx**
+- Fixed response parsing: now checks data.orders (backend returns { orders: [...] }).
+- Orders now automatically fetch full details on page load (GET /orders/:id for each order) to show item names, quantities, prices, and shipping address inline.
+- Added "View Items" section showing product details, quantities, and line totals.
+- Added shipping address display for each order.
+- Invoice download uses full order details.
+
+**src/pages/CartPage.jsx**
+- Fixed "Proceed to Checkout" button — added flex layout so arrow icon sits inline with text instead of on a separate line.
+
+**src/pages/PaymentPage.jsx**
+- Net30 payment option commented out (intentional by user).
+- Stripe and PayPal payment methods remain active.
+- Payment flow: syncCartToBackend → createOrder → payment method specific logic.
+- Note: Payment was blocked by Supabase RLS policy on orders table. User fixed by disabling RLS on orders, order_items, and order_status_history tables via Supabase Dashboard.
+
+**src/pages/LoginPage.jsx**
+- Minor adjustments to login flow.
+
+**src/pages/RegisterPage.jsx**
+- Now uses useCategories hook for dynamic product categories in vendor registration.
+- After successful registration, redirects to /verify-email with email parameter.
+- Success message includes "Check your email for a verification code."
+- Added password strength validation matching backend requirements (uppercase, lowercase, number, special character).
+
+**src/pages/HomePage.jsx**
+- Reduced hardcoded category images.
+
+**src/components/AdminLayout.jsx**
+- Layout adjustments for admin panel.
+
+**src/pages/admin/AdminDashboard.jsx**
+- Dashboard stat adjustments.
+
+**src/pages/admin/AdminVendors.jsx**
+- Vendor management adjustments.
+
+**src/pages/vendor/VendorProducts.jsx**
+- Minor adjustments to vendor product management.
+
+**src/pages/SupplierRegisterPage.jsx**
+- Minor updates (orphan file, not routed).
+
+**src/utils/constants.js**
+- Updated category constants.
+
+**vite.config.js**
+- Dev server port configuration.
+
+
+### Issues Found and Status
+
+**Product images — NOW WORKING**
+Backend fix #46 resolved signed image URLs for all endpoints. Product images now display correctly on the products page, product detail page, vendor portal, and admin panel for any product that has images uploaded.
+
+**Payment (Stripe) — WORKING after RLS fix**
+The "new row violates row-level security policy for table orders" error was a Supabase RLS issue. Fixed by running ALTER TABLE ... DISABLE ROW LEVEL SECURITY on orders, order_items, and order_status_history tables in Supabase Dashboard. Stripe payment now completes successfully.
+
+**Order history — WORKING**
+Fixed response parsing and added automatic item detail fetching. Orders now show with product names, quantities, prices, and shipping address.
+
+**Vendor registration fields — NOT FIXED (backend)**
+The Zod validator in auth.validator.ts still only accepts 6 fields for supplier registration (email, password, firstName, lastName, phone, role). Extra fields (taxId, businessAddress, categories, website, etc.) are silently stripped. The frontend sends them correctly but the backend drops them. Backend dev needs to update the validator, controller, and service. The database columns already exist.
+
+**PayPal payment — NOT WORKING (backend missing credentials)**
+Tested — shows "currently not available" error. The backend .env has NO PayPal credentials at all (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_MODE are all missing). Backend dev needs to add sandbox credentials from developer.paypal.com. Frontend code is wired up correctly — this is purely a backend config issue.
+
+**Net30 payment — INTENTIONALLY DISABLED**
+Commented out by user in PaymentPage.jsx.
+
+---
+
+*Updated during QA session on 2026-03-27.*
+*Frontend: APlus-frontend (branch: Samia)*
+*Backend: APlusMedDepot-Backend (branch: develop, commit 54f07f2)*

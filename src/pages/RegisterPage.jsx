@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { User, Store, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useCategories } from '../hooks/useCategories';
 
 const RegisterPage = () => {
   const [accountType, setAccountType] = useState('customer'); // 'customer' | 'vendor'
@@ -32,7 +33,7 @@ const RegisterPage = () => {
     }
   };
 
-  const categories = ['Surgical Supplies', 'Diagnostic Equipment', 'Personal Protection', 'Laboratory', 'Patient Care', 'Emergency Medical'];
+  const { categories } = useCategories();
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white py-12 px-4">
@@ -160,9 +161,9 @@ const RegisterPage = () => {
                 <h2 className="text-base font-semibold text-neutral border-b pb-2 pt-2">Product Categories</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {categories.map(cat => (
-                    <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" {...register('categories')} value={cat} className="w-4 h-4 text-primary rounded" />
-                      <span className="text-sm text-gray-700">{cat}</span>
+                    <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" {...register('categories')} value={cat.name} className="w-4 h-4 text-primary rounded" />
+                      <span className="text-sm text-gray-700">{cat.name}</span>
                     </label>
                   ))}
                 </div>

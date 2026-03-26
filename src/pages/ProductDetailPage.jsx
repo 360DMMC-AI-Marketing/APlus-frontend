@@ -2,48 +2,33 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ShoppingCart,
-  Package,
-  Truck,
-  Shield,
   ArrowLeft,
   Plus,
   Minus,
   CheckCircle,
   ChevronDown,
-  ChevronUp,
-  Star,
+  Shield,
+  Truck,
+  Package,
+  Award,
 } from "lucide-react";
 import { useCartStore } from "../store/cartStore";
-import { getProductById } from "../api/products";
+import { getProductById, getProducts } from "../api/products";
 import toast from "react-hot-toast";
+import { inferCategory } from "../utils/inferCategory";
 
-// FDA badge color/label mapping
 const getFdaBadge = (fdaStatus) => {
   if (!fdaStatus) return null;
+  const number = fdaStatus.match(/#\w+/)?.[0] || "";
   if (fdaStatus.includes("Approved"))
-    return {
-      label: "FDA Approved",
-      color: "bg-green-100 text-green-800 border-green-300",
-    };
+    return { label: "FDA Approved", number, color: "bg-green-100 text-green-800 border-green-300" };
   if (fdaStatus.includes("510(k)"))
-    return {
-      label: "FDA 510(k) Cleared",
-      color: "bg-blue-100 text-blue-800 border-blue-300",
-    };
+    return { label: "FDA 510(k) Cleared", number, color: "bg-blue-100 text-blue-800 border-blue-300" };
   if (fdaStatus.includes("EPA"))
-    return {
-      label: "EPA Registered",
-      color: "bg-teal-100 text-teal-800 border-teal-300",
-    };
+    return { label: "EPA Registered", number, color: "bg-teal-100 text-teal-800 border-teal-300" };
   if (fdaStatus.includes("OSHA"))
-    return {
-      label: "OSHA/ANSI Certified",
-      color: "bg-orange-100 text-orange-800 border-orange-300",
-    };
-  return {
-    label: fdaStatus,
-    color: "bg-gray-100 text-gray-800 border-gray-300",
-  };
+    return { label: "OSHA/ANSI Certified", number, color: "bg-orange-100 text-orange-800 border-orange-300" };
+  return { label: fdaStatus, number, color: "bg-gray-100 text-gray-800 border-gray-300" };
 };
 
 const ProductDetailPage = () => {
@@ -51,8 +36,8 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [quantity, setQuantity] = useState(1);
   const [showAllSuppliers, setShowAllSuppliers] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState(null);
@@ -60,33 +45,35 @@ const ProductDetailPage = () => {
   const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
-    getProductById(id)
-      .then((data) => {
-        const product = data.data || data;
-        setProduct(product);
+    setQuantity(1);
+    setSelectedSupplierId(null);
+    setShowAllSuppliers(false);
+
+    Promise.all([
+      getProductById(id).then((data) => data.data || data),
+      getProducts().then((data) => data.data || data).catch(() => []),
+    ])
+      .then(([raw, allProducts]) => {
+        const enriched = { ...raw, category: inferCategory(raw) };
+        setProduct(enriched);
+        const productName = (raw.name || "").toLowerCase().trim();
+        const similar = (Array.isArray(allProducts) ? allProducts : []).filter(
+          (p) => p.id !== raw.id && p.status === "active" && p.name && p.name.toLowerCase().trim() === productName
+        );
+        setSimilarProducts(similar);
       })
-      .catch((err) => {
-        console.error(err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) {
-    return <div className="p-10 text-center">Loading product...</div>;
-  }
+  if (loading) return <div className="p-10 text-center font-body text-gray-500">Loading product...</div>;
 
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-neutral mb-2">
-            Product not found
-          </h2>
-          <Link to="/products" className="text-primary hover:text-primary/80">
-            Back to Products
-          </Link>
+          <h2 className="text-2xl font-semibold font-body text-neutral mb-2">Product not found</h2>
+          <Link to="/products" className="text-primary hover:text-primary/80 font-body">Back to Products</Link>
         </div>
       </div>
     );
@@ -94,115 +81,309 @@ const ProductDetailPage = () => {
 
   const allSuppliers = [
     {
+      productId: product.id,
       supplierId: product.supplierId,
-      supplier: product.supplierName || product.supplier || '',
+      supplier: product.supplierName || product.supplier || "",
       price: product.price,
       stock: product.stockQuantity ?? product.stock ?? 0,
       rating: 4.8,
-      isPrimary: true,
     },
-    ...(product.otherSuppliers || []).map((s) => ({
-      ...s,
-      isPrimary: false,
+    ...(product.otherSuppliers || []).map((s) => ({ ...s, productId: product.id })),
+    ...similarProducts.map((p) => ({
+      productId: p.id,
+      supplierId: p.supplierId,
+      supplier: p.supplierName || p.supplier || "",
+      price: p.price,
+      stock: p.stockQuantity ?? p.stock ?? 0,
+      rating: 4.5,
     })),
   ].sort((a, b) => (a.price || 0) - (b.price || 0));
 
   const activeSupplier = selectedSupplierId
-    ? allSuppliers.find((s) => s.supplierId === selectedSupplierId) ||
-      allSuppliers[0]
+    ? allSuppliers.find((s) => s.supplierId === selectedSupplierId) || allSuppliers[0]
     : allSuppliers[0];
+
+  const hasMultipleSuppliers = allSuppliers.length > 1;
+  const visibleSuppliers = showAllSuppliers ? allSuppliers : allSuppliers.slice(0, 2);
+  const hiddenCount = allSuppliers.length - 2;
 
   const handleAddToCart = () => {
     addItem(
       {
-        id: product.id,
-        name: product.name || '',
+        id: activeSupplier.productId || product.id,
+        name: product.name || "",
         price: Number(activeSupplier.price) || 0,
         stock: activeSupplier.stock ?? product.stock ?? 0,
-        supplier: activeSupplier.supplier || '',
-        supplierId: activeSupplier.supplierId || '',
-        image: product.images?.[0] || '/placeholder.svg',
-        category: product.category || '',
+        supplier: activeSupplier.supplier || "",
+        supplierId: activeSupplier.supplierId || "",
+        image: product.images?.[0] || "/placeholder.svg",
+        category: product.category || "",
       },
       quantity,
     );
-    toast.success(`${product.name} added to cart (${quantity})`);
     navigate("/cart");
   };
 
   const incrementQuantity = () => {
     if (quantity < (activeSupplier.stock || 0)) setQuantity(quantity + 1);
   };
-
   const decrementQuantity = () => {
     if (quantity > 1) setQuantity(quantity - 1);
   };
 
   const fdaBadge = getFdaBadge(product.fdaStatus);
+  const specs = product.specifications || {};
+  const hasSpecs = Object.keys(specs).length > 0;
+  const description = product.description || "";
+  const features = description
+    .split(/\n|\.(?=\s)/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 10 && s.length < 120)
+    .slice(0, 5);
+
+  const totalPrice = (Number(activeSupplier.price) || 0) * quantity;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8 font-body">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           to="/products"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-primary mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-primary mb-6 transition-colors text-sm"
         >
-          <ArrowLeft className="w-5 h-5" />
-          Back to Products
+          <ArrowLeft className="w-4 h-4" /> Back to Products
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* ── LEFT: Image ── */}
           <div>
-            <div className="glass-card p-6 relative">
-              <span className="absolute top-8 left-8 bg-yellow-400 text-yellow-900 text-sm font-bold px-3 py-1.5 rounded shadow z-10">
-                SAMPLE - Not For Purchase
-              </span>
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 relative">
+              {fdaBadge && (
+                <span className={`absolute top-6 left-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${fdaBadge.color}`}>
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  {fdaBadge.label} {fdaBadge.number}
+                </span>
+              )}
               <img
                 src={product.images?.[0] || "/placeholder.svg"}
                 alt={product.name}
-                className="w-full h-96 object-cover rounded-lg"
+                className="w-full h-[420px] object-cover rounded-xl"
               />
-              {fdaBadge && (
-                <div className="absolute top-8 left-8">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${fdaBadge.color}`}
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    {fdaBadge.label}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
-          <div>
-            <h1 className="font-display text-4xl text-neutral mb-4">
+          {/* ── RIGHT: Details ── */}
+          <div className="space-y-5">
+            {/* Badges */}
+            <div className="flex flex-wrap items-center gap-2">
+              {product.category && (
+                <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                  {product.category}
+                </span>
+              )}
+              {fdaBadge && (
+                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${fdaBadge.color}`}>
+                  <CheckCircle className="w-3 h-3" />
+                  {fdaBadge.label} {fdaBadge.number}
+                </span>
+              )}
+            </div>
+
+            {/* Title */}
+            <h1 className="font-display text-3xl text-neutral leading-tight">
               {product.name}
             </h1>
-            <p className="text-gray-600 mb-6">{product.description || ""}</p>
 
-            <div className="mb-6">
-              <span className="text-3xl font-bold text-primary">
-                ${Number(activeSupplier.price || 0).toFixed(2)}
-              </span>
-              <p className="text-sm text-gray-600">
-                {activeSupplier.stock || 0} in stock
+            {/* Short description */}
+            {description && (
+              <p className="text-gray-500 text-sm leading-relaxed">
+                {description.split("\n")[0]}
               </p>
+            )}
+
+            {/* ── Compare Prices ── */}
+            {hasMultipleSuppliers ? (
+              <div className="rounded-2xl border border-red-100 bg-[#fff5f5] overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4 text-neutral" />
+                    <p className="text-[13px] font-bold text-neutral">
+                      Compare Prices — {allSuppliers.length} Suppliers
+                    </p>
+                  </div>
+                  <button onClick={() => setShowAllSuppliers(!showAllSuppliers)} className="text-xs text-primary font-semibold hover:underline flex items-center gap-0.5">
+                    {showAllSuppliers ? "Show less" : "Expand all"} <ChevronDown className={`w-3 h-3 transition-transform ${showAllSuppliers ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
+
+                {/* Supplier rows */}
+                <div className="bg-white divide-y divide-gray-100">
+                  {visibleSuppliers.map((s, i) => {
+                    const isActive = activeSupplier.supplierId === s.supplierId;
+                    return (
+                      <button
+                        key={s.supplierId || i}
+                        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+                        onClick={() => setSelectedSupplierId(s.supplierId)}
+                      >
+                        <div className="flex items-center gap-3">
+                          {isActive ? (
+                            <div className="w-[18px] h-[18px] rounded-full bg-primary border-[3px] border-primary flex items-center justify-center flex-shrink-0">
+                              <div className="w-[6px] h-[6px] rounded-full bg-white" />
+                            </div>
+                          ) : (
+                            <div className="w-[18px] h-[18px] rounded-full border-2 border-gray-300 bg-white flex-shrink-0" />
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-neutral">{s.supplier}</span>
+                              {i === 0 && <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">Best Price</span>}
+                              {i === 1 && allSuppliers.length > 2 && <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">Featured</span>}
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-xs text-yellow-500">★</span>
+                              <span className="text-xs text-gray-400">{s.rating || "4.5"}</span>
+                              <span className="text-xs text-gray-400 ml-1">{s.stock} in stock</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-lg font-semibold text-neutral">${Number(s.price || 0).toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* More suppliers link */}
+                {!showAllSuppliers && hiddenCount > 0 && (
+                  <div className="border-t border-red-100 py-3 text-center bg-white">
+                    <button
+                      onClick={() => setShowAllSuppliers(true)}
+                      className="text-xs text-primary font-semibold hover:underline"
+                    >
+                      + {hiddenCount} more supplier{hiddenCount > 1 ? "s" : ""}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Single supplier */
+              <div className="bg-red-50/40 rounded-xl p-5">
+                <p className="text-4xl font-bold text-primary">
+                  ${Number(activeSupplier.price || 0).toFixed(2)}
+                  <span className="text-sm font-normal text-gray-500 ml-2">per unit</span>
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  Supplier: <span className="font-semibold text-neutral">{activeSupplier.supplier}</span>
+                </p>
+                <p className="text-sm">
+                  Stock: <span className={`font-semibold ${activeSupplier.stock > 0 ? "text-green-600" : "text-red-500"}`}>
+                    {activeSupplier.stock > 0 ? `${activeSupplier.stock} units available` : "Out of stock"}
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {/* Selected supplier summary */}
+            {hasMultipleSuppliers && (
+              <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-[#f7f6f4] to-[#eeedea] px-5 py-4">
+                <div>
+                  <p className="text-[11px] text-gray-400">Selected supplier</p>
+                  <p className="text-sm font-bold text-neutral mt-0.5">{activeSupplier.supplier}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{activeSupplier.stock} units available</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-primary">${Number(activeSupplier.price || 0).toFixed(2)}</p>
+                  <p className="text-[11px] text-gray-400 italic">per unit</p>
+                </div>
+              </div>
+            )}
+
+            {/* Quantity */}
+            <div>
+              <p className="text-sm font-semibold font-body text-neutral mb-3">Quantity</p>
+              <div className="flex items-center gap-5">
+                <div className="inline-flex items-center bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <button onClick={decrementQuantity} className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-primary transition-colors">
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input value={quantity} readOnly className="w-14 h-11 text-center font-semibold text-neutral bg-gray-50 border-x border-gray-200" />
+                  <button onClick={incrementQuantity} className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-primary transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Total: <span className="text-lg font-bold text-primary">${totalPrice.toFixed(2)}</span>
+                </p>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <button onClick={decrementQuantity}>
-                <Minus />
-              </button>
-              <input value={quantity} readOnly />
-              <button onClick={incrementQuantity}>
-                <Plus />
-              </button>
-            </div>
-
-            <button onClick={handleAddToCart} className="btn-medical">
-              Add to Cart
+            {/* Add to Cart */}
+            <button
+              onClick={handleAddToCart}
+              disabled={!activeSupplier.stock}
+              className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-4 rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-[15px]"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              Add to Cart — {activeSupplier.supplier}
             </button>
+
+            {/* Key Features */}
+            {features.length > 0 && (
+              <div>
+                <h3 className="font-display text-lg text-neutral mb-4">Key Features</h3>
+                <ul className="space-y-3">
+                  {features.map((f, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-neutral">
+                      <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Specifications */}
+            {hasSpecs && (
+              <div className="bg-gray-50 rounded-2xl p-6">
+                <h3 className="font-display text-lg text-neutral mb-4 italic">Specifications</h3>
+                <div className="grid grid-cols-2 gap-x-10 gap-y-4">
+                  {Object.entries(specs).map(([key, value]) => (
+                    <div key={key}>
+                      <p className="text-xs text-gray-400 mb-0.5">{key}</p>
+                      <p className="text-sm font-bold text-neutral">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Trust Badges */}
+            <div className="grid grid-cols-4 gap-3 pt-2">
+              {fdaBadge ? (
+                <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <CheckCircle className="w-7 h-7 text-primary mb-2" />
+                  <span className="text-xs font-semibold text-neutral leading-tight">{fdaBadge.label}</span>
+                  {fdaBadge.number && <span className="text-[10px] text-gray-400 mt-0.5">{fdaBadge.number}</span>}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <Shield className="w-7 h-7 text-primary mb-2" />
+                  <span className="text-xs font-semibold text-neutral leading-tight">Certified Product</span>
+                </div>
+              )}
+              <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <Award className="w-7 h-7 text-primary mb-2" />
+                <span className="text-xs font-semibold text-neutral leading-tight">Quality Assured</span>
+              </div>
+              <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <Truck className="w-7 h-7 text-primary mb-2" />
+                <span className="text-xs font-semibold text-neutral leading-tight">Fast Delivery</span>
+              </div>
+              <div className="flex flex-col items-center text-center p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <Package className="w-7 h-7 text-primary mb-2" />
+                <span className="text-xs font-semibold text-neutral leading-tight">Secure Packaging</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

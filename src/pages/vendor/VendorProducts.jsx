@@ -16,6 +16,7 @@ import {
   deleteSupplierProductImage,
 } from "../../api/suppliers";
 import { resolveProductImages, getProductImageSrc } from "../../utils/imageHelper";
+import { useCategories } from "../../hooks/useCategories";
 
 // ─── Pricing helper ─────────────────────────
 export const getPricing = (product) => {
@@ -80,16 +81,8 @@ const EMPTY_FORM = {
   description: "",
 };
 
-const CATEGORIES = [
-  "Surgical Supplies",
-  "Personal Protection",
-  "Laboratory",
-  "Patient Care",
-  "Emergency Medical",
-  "Diagnostic Equipment",
-];
-
 const VendorProducts = () => {
+  const { categories: CATEGORIES } = useCategories();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -518,7 +511,7 @@ const VendorProducts = () => {
                   >
                     <option value="">Select category...</option>
                     {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                   </select>
                 </div>

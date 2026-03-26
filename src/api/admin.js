@@ -36,6 +36,10 @@ export async function getAdminSuppliers(params = {}) {
   return apiClient.get("/admin/suppliers", params);
 }
 
+export async function reviewSupplier(id) {
+  return apiClient.put(`/admin/suppliers/${id}/review`);
+}
+
 export async function approveSupplier(id, body = {}) {
   return apiClient.put(`/admin/suppliers/${id}/approve`, body);
 }

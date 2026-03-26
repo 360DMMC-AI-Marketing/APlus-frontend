@@ -1,8 +1,2 @@
-export const CATEGORIES = [
-  "All Products",
-  "Surgical Supplies",
-  "Personal Protection",
-  "Laboratory",
-  "Patient Care",
-  "Emergency Medical",
-];
+// Categories are now fetched dynamically from GET /api/categories.
+// Use the useCategories() hook instead.
