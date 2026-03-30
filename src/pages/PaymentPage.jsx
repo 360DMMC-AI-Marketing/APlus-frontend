@@ -277,30 +277,8 @@ const PaymentPage = () => {
                     <span className="text-xs text-gray-400">Quick Pay</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => !processing && setPaymentMethod('net30')}
-                    disabled={!net30Eligible || processing}
-                    className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${
-                      paymentMethod === 'net30'
-                        ? 'border-primary bg-primary/5'
-                        : net30Eligible ? 'border-gray-200 hover:border-gray-300' : 'border-gray-200 opacity-50 cursor-not-allowed'
-                    }`}
-                  >
-                    <svg className={`w-8 h-8 ${paymentMethod === 'net30' ? 'text-primary' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className={`text-sm font-semibold ${paymentMethod === 'net30' ? 'text-primary' : 'text-gray-600'}`}>
-                      Net 30
-                    </span>
-                    <span className="text-xs text-gray-400">Invoice</span>
-                  </button>
+                  {/* Net 30 hidden — third-party provider not yet confirmed */}
                 </div>
-                {!net30Eligible && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Net 30 requires Tax ID. Please update your profile or contact support.
-                  </p>
-                )}
               </div>
 
               {error && (
