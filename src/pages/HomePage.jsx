@@ -30,24 +30,24 @@ const HomePage = () => {
 
   const categories = [
     {
-      name: 'Diagnostic Equipment',
+      name: 'Wound Care',
       image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
-      count: '150+ Products',
+      count: 'Browse Products',
     },
     {
-      name: 'Personal Protection',
+      name: 'PPE (Personal Protective Equipment)',
       image: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
-      count: '200+ Products',
+      count: 'Browse Products',
     },
     {
-      name: 'Patient Care',
+      name: 'Nursing Care Supplies',
       image: 'https://images.unsplash.com/photo-1582719366037-2c4d7c1a0413?w=400',
-      count: '120+ Products',
+      count: 'Browse Products',
     },
     {
-      name: 'Emergency Medical',
+      name: 'DME (Durable Medical Equipment)',
       image: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
-      count: '80+ Products',
+      count: 'Browse Products',
     },
   ];
 

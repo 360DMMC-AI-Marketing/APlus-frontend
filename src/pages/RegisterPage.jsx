@@ -32,7 +32,12 @@ const RegisterPage = () => {
     }
   };
 
-  const categories = ['Surgical Supplies', 'Diagnostic Equipment', 'Personal Protection', 'Laboratory', 'Patient Care', 'Emergency Medical'];
+  const categories = [
+    'Wound Care', 'Vascular Access', 'Incontinence Care', 'Gloves',
+    'Nursing Care Supplies', 'Enteral Feeding Tubes', 'Skin Biologics',
+    'Advanced Wound Care', 'PPE (Personal Protective Equipment)',
+    'Central Supply', 'DME (Durable Medical Equipment)',
+  ];
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white py-12 px-4">

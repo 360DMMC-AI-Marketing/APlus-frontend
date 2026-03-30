@@ -16,6 +16,7 @@ import {
   deleteSupplierProductImage,
 } from "../../api/suppliers";
 import { resolveProductImages, getProductImageSrc } from "../../utils/imageHelper";
+import { PRODUCT_CATEGORIES as CATEGORIES } from "../../utils/constants";
 
 // ─── Pricing helper ─────────────────────────
 export const getPricing = (product) => {
@@ -80,14 +81,7 @@ const EMPTY_FORM = {
   description: "",
 };
 
-const CATEGORIES = [
-  "Surgical Supplies",
-  "Personal Protection",
-  "Laboratory",
-  "Patient Care",
-  "Emergency Medical",
-  "Diagnostic Equipment",
-];
+
 
 const VendorProducts = () => {
   const [products, setProducts] = useState([]);
