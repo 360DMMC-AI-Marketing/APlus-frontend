@@ -195,7 +195,7 @@ missingItems: list only the specific items that are missing or failed. Empty arr
   // ─── Auto-actions ─────────────────────────────────────────────────────────
   const autoApproveVendor = async (vendor, score) => {
     try {
-      await approveSupplier(vendor.id, { commission_rate: 10 });
+      await approveSupplier(vendor.id, { commissionRate: 10 });
     } catch { /* update locally anyway */ }
     setVendors(prev => prev.map(vv =>
       vv.id === vendor.id ? { ...vv, status: 'approved', commission_rate: 10, approved_at: new Date().toISOString() } : vv
@@ -207,7 +207,7 @@ missingItems: list only the specific items that are missing or failed. Empty arr
 
   const autoRejectVendor = async (vendor, reason) => {
     try {
-      await rejectSupplier(vendor.id, { reason });
+      await rejectSupplier(vendor.id, { rejectionReason: reason });
     } catch { /* update locally anyway */ }
     setVendors(prev => prev.map(vv =>
       vv.id === vendor.id ? { ...vv, status: 'rejected', rejection_reason: reason } : vv
@@ -230,7 +230,7 @@ missingItems: list only the specific items that are missing or failed. Empty arr
     const finalCommission = useCustomCommission ? parseFloat(customCommission) : commission;
     if (!finalCommission || finalCommission < 1 || finalCommission > 50) return;
     try {
-      await approveSupplier(approveVendorTarget.id, { commission_rate: finalCommission });
+      await approveSupplier(approveVendorTarget.id, { commissionRate: finalCommission });
     } catch { /* update locally */ }
     setVendors(vendors.map(vv =>
       vv.id === approveVendorTarget.id
@@ -269,7 +269,7 @@ missingItems: list only the specific items that are missing or failed. Empty arr
     if (showCustomReason && customReason.trim()) checkedLabels.push(customReason.trim());
     const finalReason = checkedLabels.join('; ');
     try {
-      await rejectSupplier(selectedVendor.id, { reason: finalReason });
+      await rejectSupplier(selectedVendor.id, { rejectionReason: finalReason });
     } catch { /* update locally */ }
     setVendors(vendors.map(vv =>
       vv.id === selectedVendor.id
