@@ -39,14 +39,20 @@ export const useAuthStore = create(
             role: backendRole,
             companyName: formData.companyName || formData.company || undefined,
             phone: formData.phone || formData.businessPhone || undefined,
-            ...(backendRole === 'supplier' && {
-              taxId: formData.taxId || undefined,
-              businessAddress: formData.businessAddress || undefined,
-              yearsInBusiness: formData.yearsInBusiness ? Number(formData.yearsInBusiness) : undefined,
-              businessLicense: formData.businessLicense || undefined,
-              categories: formData.categories?.length ? formData.categories : undefined,
-            }),
           };
+
+          // Include vendor/supplier-specific fields when registering as supplier
+          if (backendRole === 'supplier') {
+            payload.taxId = formData.taxId || undefined;
+            payload.businessAddress = formData.businessAddress || undefined;
+            payload.businessPhone = formData.businessPhone || undefined;
+            payload.website = formData.website || undefined;
+            payload.yearsInBusiness = formData.yearsInBusiness ? Number(formData.yearsInBusiness) : undefined;
+            payload.businessLicense = formData.businessLicense || undefined;
+            payload.fdaRegistration = formData.fdaRegistration || undefined;
+            payload.categories = formData.categories || undefined;
+            payload.position = formData.position || undefined;
+          }
 
           await apiRegister(payload, captchaToken);
           set({ loading: false });
@@ -73,6 +79,7 @@ export const useAuthStore = create(
       // Logout
       logout: () => {
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         set({ user: null, error: null });
       },
 
@@ -85,6 +92,6 @@ export const useAuthStore = create(
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user }),
-    }
-  )
+    },
+  ),
 );

@@ -150,7 +150,7 @@ const CartPage = () => {
 
               <button
                 onClick={handleCheckout}
-                className="w-full btn-medical mb-4"
+                className="w-full btn-medical mb-4 flex items-center justify-center gap-2"
               >
                 Proceed to Checkout
                 <ArrowRight className="w-5 h-5" />

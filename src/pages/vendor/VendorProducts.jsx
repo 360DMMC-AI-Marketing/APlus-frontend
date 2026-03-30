@@ -16,7 +16,7 @@ import {
   deleteSupplierProductImage,
 } from "../../api/suppliers";
 import { resolveProductImages, getProductImageSrc } from "../../utils/imageHelper";
-import { PRODUCT_CATEGORIES as CATEGORIES } from "../../utils/constants";
+import { useCategories } from "../../hooks/useCategories";
 
 // ─── Pricing helper ─────────────────────────
 export const getPricing = (product) => {
@@ -71,6 +71,12 @@ const PriceCell = ({ product }) => {
   );
 };
 
+const FDA_OPTIONS = [
+  { value: "", label: "None" },
+  { value: "510k", label: "FDA 510(k)" },
+  { value: "approved", label: "FDA Approved" },
+];
+
 const EMPTY_FORM = {
   name: "",
   sku: "",
@@ -82,15 +88,8 @@ const EMPTY_FORM = {
   fdaStatus: "",
 };
 
-const FDA_OPTIONS = [
-  { value: "", label: "None" },
-  { value: "510k", label: "FDA 510(k)" },
-  { value: "approved", label: "FDA Approved" },
-];
-
-
-
 const VendorProducts = () => {
+  const { categories: CATEGORIES } = useCategories();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,7 +161,6 @@ const VendorProducts = () => {
       originalPrice: product.originalPrice || "",
       stockQuantity: product.stockQuantity ?? product.stock_quantity ?? "",
       description: product.description || "",
-      fdaStatus: product.specifications?.fda_status || "",
     });
     setProductImages(product.images || []);
     setPendingFiles([]);
@@ -260,7 +258,6 @@ const VendorProducts = () => {
           description: form.description || "",
           category: form.category || undefined,
           original_price: form.originalPrice ? Number(form.originalPrice) : null,
-          specifications: { fda_status: form.fdaStatus || null },
         };
 
         // For active products, backend only allows price and stock updates
@@ -285,7 +282,6 @@ const VendorProducts = () => {
           description: form.description || "",
           category: form.category || undefined,
           original_price: form.originalPrice ? Number(form.originalPrice) : undefined,
-          specifications: form.fdaStatus ? { fda_status: form.fdaStatus } : undefined,
         };
 
         const data = await createSupplierProduct(createData);
@@ -522,19 +518,7 @@ const VendorProducts = () => {
                   >
                     <option value="">Select category...</option>
                     {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-neutral mb-1">FDA Status</label>
-                  <select
-                    value={form.fdaStatus}
-                    onChange={(e) => setForm({ ...form, fdaStatus: e.target.value })}
-                    className="input-medical"
-                  >
-                    {FDA_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                   </select>
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Store, Mail, Phone, MapPin, FileText, Sparkles, AlertTriangle, X, Zap, Percent, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAdminSuppliers, approveSupplier, rejectSupplier } from '../../api/admin';
+import { getAdminSuppliers, reviewSupplier, approveSupplier, rejectSupplier } from '../../api/admin';
 
 // ─── Rejection reasons for checkbox list ──────────────────────────────────────
 const REJECTION_REASONS = [
@@ -52,24 +52,26 @@ const AdminVendors = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Helper to normalize vendor fields for display
+  // Helper to normalize vendor fields for display (backend returns camelCase)
   const v = (vendor) => ({
     id: vendor.id,
-    company: vendor.businessName || vendor.business_name || vendor.company || vendor.name,
+    company: vendor.businessName || vendor.business_name || vendor.company || vendor.name || '',
     contactName: vendor.contactName || vendor.contact_name || '',
     email: vendor.contactEmail || vendor.contact_email || vendor.email || '',
-    phone: vendor.phone || vendor.businessInfo?.phone || '',
+    phone: vendor.phone || vendor.businessPhone || '',
     address: typeof vendor.address === 'object'
-      ? `${vendor.address.street || ''}, ${vendor.address.city || ''}, ${vendor.address.state || ''}`
-      : (vendor.address || vendor.businessInfo?.address || ''),
-    taxId: vendor.taxId || vendor.tax_id || vendor.businessInfo?.taxId || '',
-    website: vendor.website || vendor.businessInfo?.website || '',
-    yearsInBusiness: vendor.yearsInBusiness || vendor.years_in_business || vendor.businessInfo?.yearsInBusiness || 0,
+      ? [vendor.address.street, vendor.address.city, vendor.address.state].filter(Boolean).join(', ')
+      : (vendor.address || vendor.businessAddress || ''),
+    taxId: vendor.taxId || vendor.tax_id || '',
+    website: vendor.website || '',
+    yearsInBusiness: vendor.yearsInBusiness || vendor.years_in_business || 0,
     categories: vendor.productCategories || vendor.product_categories || vendor.categories || [],
     status: vendor.status,
     commissionRate: vendor.commissionRate || vendor.commission_rate || 10,
-    approvedDate: vendor.approvedAt || vendor.approved_at || vendor.approvedDate || '',
-    rejectionReason: vendor.rejectionReason || vendor.rejection_reason || vendor.rejectedReason || '',
+    approvedDate: vendor.approvedAt || vendor.approved_at || '',
+    rejectionReason: vendor.rejectionReason || vendor.rejection_reason || '',
+    currentBalance: vendor.currentBalance || 0,
+    createdAt: vendor.createdAt || '',
     raw: vendor,
   });
 
@@ -195,10 +197,11 @@ missingItems: list only the specific items that are missing or failed. Empty arr
   // ─── Auto-actions ─────────────────────────────────────────────────────────
   const autoApproveVendor = async (vendor, score) => {
     try {
+      try { await reviewSupplier(vendor.id); } catch { /* already past pending */ }
       await approveSupplier(vendor.id, { commissionRate: 10 });
     } catch { /* update locally anyway */ }
     setVendors(prev => prev.map(vv =>
-      vv.id === vendor.id ? { ...vv, status: 'approved', commission_rate: 10, approved_at: new Date().toISOString() } : vv
+      vv.id === vendor.id ? { ...vv, status: 'approved', commissionRate: 10, approved_at: new Date().toISOString() } : vv
     ));
     setAutoActionLog(log => [...log, { type: 'approved', vendor: v(vendor).company, score, time: new Date().toLocaleTimeString() }]);
     setSelectedVendor(null);
@@ -207,7 +210,7 @@ missingItems: list only the specific items that are missing or failed. Empty arr
 
   const autoRejectVendor = async (vendor, reason) => {
     try {
-      await rejectSupplier(vendor.id, { rejectionReason: reason });
+      await rejectSupplier(vendor.id, { reason });
     } catch { /* update locally anyway */ }
     setVendors(prev => prev.map(vv =>
       vv.id === vendor.id ? { ...vv, status: 'rejected', rejection_reason: reason } : vv
@@ -230,16 +233,23 @@ missingItems: list only the specific items that are missing or failed. Empty arr
     const finalCommission = useCustomCommission ? parseFloat(customCommission) : commission;
     if (!finalCommission || finalCommission < 1 || finalCommission > 50) return;
     try {
+      // Move to under_review first if still pending, then approve
+      try {
+        await reviewSupplier(approveVendorTarget.id);
+      } catch { /* already past pending — continue to approve */ }
       await approveSupplier(approveVendorTarget.id, { commissionRate: finalCommission });
-    } catch { /* update locally */ }
-    setVendors(vendors.map(vv =>
-      vv.id === approveVendorTarget.id
-        ? { ...vv, status: 'approved', commission_rate: finalCommission, approved_at: new Date().toISOString() }
-        : vv
-    ));
-    setShowApproveModal(false);
-    setSelectedVendor(null);
-    setAiResults(null);
+      setVendors(vendors.map(vv =>
+        vv.id === approveVendorTarget.id
+          ? { ...vv, status: 'approved', commissionRate: finalCommission, approvedAt: new Date().toISOString() }
+          : vv
+      ));
+      setShowApproveModal(false);
+      setSelectedVendor(null);
+      setAiResults(null);
+    } catch (err) {
+      console.error('Approve failed:', err);
+      alert(`Failed to approve vendor: ${err.message || 'Unknown error'}`);
+    }
   };
 
   // ─── Open Reject Modal ────────────────────────────────────────────────────
@@ -269,7 +279,7 @@ missingItems: list only the specific items that are missing or failed. Empty arr
     if (showCustomReason && customReason.trim()) checkedLabels.push(customReason.trim());
     const finalReason = checkedLabels.join('; ');
     try {
-      await rejectSupplier(selectedVendor.id, { rejectionReason: finalReason });
+      await rejectSupplier(selectedVendor.id, { reason: finalReason });
     } catch { /* update locally */ }
     setVendors(vendors.map(vv =>
       vv.id === selectedVendor.id
@@ -357,10 +367,10 @@ missingItems: list only the specific items that are missing or failed. Empty arr
                         <h3 className="font-semibold text-lg text-secondary">{vd.company}</h3>
                         <p className="text-sm text-gray-600 mb-2">{vd.contactName}</p>
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="flex items-center gap-2 text-gray-600"><Mail className="w-4 h-4" />{vd.email}</div>
-                          <div className="flex items-center gap-2 text-gray-600"><Phone className="w-4 h-4" />{vd.phone}</div>
-                          <div className="flex items-center gap-2 text-gray-600"><MapPin className="w-4 h-4" />{vd.address}</div>
-                          <div className="flex items-center gap-2 text-gray-600"><FileText className="w-4 h-4" />Tax ID: {vd.taxId}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><Mail className="w-4 h-4" />{vd.email || <span className="text-gray-400 italic">No email</span>}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><Phone className="w-4 h-4" />{vd.phone || <span className="text-gray-400 italic">No phone</span>}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><MapPin className="w-4 h-4" />{vd.address || <span className="text-gray-400 italic">No address</span>}</div>
+                          <div className="flex items-center gap-2 text-gray-600"><FileText className="w-4 h-4" />Tax ID: {vd.taxId || <span className="text-gray-400 italic">Not provided</span>}</div>
                         </div>
                       </div>
                     </div>

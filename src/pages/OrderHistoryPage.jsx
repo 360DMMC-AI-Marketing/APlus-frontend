@@ -103,12 +103,24 @@ const generateInvoiceHtml = (order) => {
 const OrderHistoryPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     getOrders()
-      .then((data) => {
+      .then(async (data) => {
         const list = data.orders || data.data || data;
-        setOrders(Array.isArray(list) ? list : []);
+        const orderList = Array.isArray(list) ? list : [];
+        // Fetch full details (with items) for each order
+        const detailed = await Promise.all(
+          orderList.map(async (order) => {
+            try {
+              const detail = await getOrderById(order.id);
+              const full = detail.order || detail.data || detail;
+              return { ...order, ...full };
+            } catch {
+              return order;
+            }
+          })
+        );
+        setOrders(detailed);
       })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
@@ -221,7 +233,37 @@ const OrderHistoryPage = () => {
                   </div>
                 </div>
 
-                <div className="p-6 border-t border-gray-100 flex gap-3">
+                {/* Order Items */}
+                {(() => {
+                  const items = order.items || order.order_items || [];
+                  if (items.length === 0) return null;
+                  return (
+                    <div className="px-6 py-4 border-t border-gray-100 space-y-3">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-neutral text-sm">{item.name || item.product_name}</h4>
+                            <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                          </div>
+                          <p className="font-semibold text-neutral text-sm">
+                            ${(Number(item.unit_price || item.price || 0) * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {order.shipping_address && (
+                  <div className="px-6 py-4 bg-gray-50">
+                    <h4 className="font-semibold text-xs text-gray-500 uppercase mb-1">Shipping Address</h4>
+                    <p className="text-sm text-gray-600">
+                      {order.shipping_address.street}, {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.zip_code}
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-6 border-t border-gray-100 flex flex-wrap gap-3">
                   {(order.status === 'fully_shipped' || order.status === 'partially_shipped') && (
                     <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                       Track Shipment

@@ -9,6 +9,43 @@ export class ApiError extends Error {
   }
 }
 
+let isRefreshing = false;
+let refreshPromise = null;
+
+async function tryRefreshToken() {
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) return false;
+
+  if (isRefreshing) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      localStorage.setItem("accessToken", data.session.accessToken);
+      localStorage.setItem("refreshToken", data.session.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export async function apiClient(endpoint, options = {}) {
   const token = localStorage.getItem("accessToken");
 
@@ -28,6 +65,19 @@ export async function apiClient(endpoint, options = {}) {
   const data = text ? JSON.parse(text) : {};
 
   if (!res.ok) {
+    // On 401, try refreshing the token and retry once
+    if (res.status === 401 && !options._retried) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        return apiClient(endpoint, { ...options, _retried: true });
+      }
+      // Refresh failed — clear auth and redirect to login
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
     throw new ApiError(
       res.status,
       data.message || data.error?.message || `API Error ${res.status}`,

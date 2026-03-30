@@ -5,6 +5,7 @@ export async function login(email, password, captchaToken) {
   if (captchaToken) body.captchaToken = captchaToken;
   const data = await apiClient.post("/auth/login", body);
   localStorage.setItem("accessToken", data.session.accessToken);
+  localStorage.setItem("refreshToken", data.session.refreshToken);
   return data.user;
 }
 
