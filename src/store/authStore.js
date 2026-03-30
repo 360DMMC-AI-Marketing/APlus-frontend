@@ -39,6 +39,13 @@ export const useAuthStore = create(
             role: backendRole,
             companyName: formData.companyName || formData.company || undefined,
             phone: formData.phone || formData.businessPhone || undefined,
+            ...(backendRole === 'supplier' && {
+              taxId: formData.taxId || undefined,
+              businessAddress: formData.businessAddress || undefined,
+              yearsInBusiness: formData.yearsInBusiness ? Number(formData.yearsInBusiness) : undefined,
+              businessLicense: formData.businessLicense || undefined,
+              categories: formData.categories?.length ? formData.categories : undefined,
+            }),
           };
 
           await apiRegister(payload);
