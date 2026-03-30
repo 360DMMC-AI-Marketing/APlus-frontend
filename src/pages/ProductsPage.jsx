@@ -354,7 +354,8 @@ const ProductsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProducts.map((product) => {
                   const supplier = product.supplierName || product.supplier || "";
-                  const fdaStatus = product.fdaStatus || product.fda_status || "";
+                  const rawFda = product.specifications?.fda_status || product.fdaStatus || product.fda_status || "";
+                  const fdaStatus = rawFda === "510k" ? "FDA 510(k)" : rawFda === "approved" ? "FDA Approved" : rawFda;
 
                   return (
                     <div

@@ -131,7 +131,9 @@ const ProductDetailPage = () => {
     if (quantity > 1) setQuantity(quantity - 1);
   };
 
-  const fdaBadge = getFdaBadge(product.fdaStatus);
+  const rawFda = product.specifications?.fda_status || product.fdaStatus || "";
+  const fdaLabel = rawFda === "510k" ? "FDA 510(k) Cleared" : rawFda === "approved" ? "FDA Approved" : rawFda;
+  const fdaBadge = getFdaBadge(fdaLabel);
   const specs = product.specifications || {};
   const hasSpecs = Object.keys(specs).length > 0;
   const description = product.description || "";
