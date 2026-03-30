@@ -55,21 +55,21 @@ const AdminVendors = () => {
   // Helper to normalize vendor fields for display
   const v = (vendor) => ({
     id: vendor.id,
-    company: vendor.business_name || vendor.company || vendor.name,
-    contactName: vendor.contact_name || vendor.contactName || '',
-    email: vendor.contact_email || vendor.email || '',
+    company: vendor.businessName || vendor.business_name || vendor.company || vendor.name,
+    contactName: vendor.contactName || vendor.contact_name || '',
+    email: vendor.contactEmail || vendor.contact_email || vendor.email || '',
     phone: vendor.phone || vendor.businessInfo?.phone || '',
     address: typeof vendor.address === 'object'
       ? `${vendor.address.street || ''}, ${vendor.address.city || ''}, ${vendor.address.state || ''}`
       : (vendor.address || vendor.businessInfo?.address || ''),
-    taxId: vendor.tax_id || vendor.businessInfo?.taxId || '',
+    taxId: vendor.taxId || vendor.tax_id || vendor.businessInfo?.taxId || '',
     website: vendor.website || vendor.businessInfo?.website || '',
-    yearsInBusiness: vendor.years_in_business || vendor.businessInfo?.yearsInBusiness || 0,
-    categories: vendor.product_categories || vendor.categories || [],
+    yearsInBusiness: vendor.yearsInBusiness || vendor.years_in_business || vendor.businessInfo?.yearsInBusiness || 0,
+    categories: vendor.productCategories || vendor.product_categories || vendor.categories || [],
     status: vendor.status,
-    commissionRate: vendor.commission_rate || vendor.commissionRate || 10,
-    approvedDate: vendor.approved_at || vendor.approvedDate || '',
-    rejectionReason: vendor.rejection_reason || vendor.rejectedReason || '',
+    commissionRate: vendor.commissionRate || vendor.commission_rate || 10,
+    approvedDate: vendor.approvedAt || vendor.approved_at || vendor.approvedDate || '',
+    rejectionReason: vendor.rejectionReason || vendor.rejection_reason || vendor.rejectedReason || '',
     raw: vendor,
   });
 
