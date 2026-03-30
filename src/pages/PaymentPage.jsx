@@ -136,11 +136,14 @@ const PaymentPage = () => {
 
   // Step 1: Sync cart to backend then create order
   const placeOrder = async () => {
+    console.log("[Payment] Syncing cart to backend...", items);
     await syncCartToBackend(items);
+    console.log("[Payment] Cart synced. Creating order with shipping:", shippingInfo);
     const data = await createOrder(
       shippingInfo,
       shippingInfo.instructions || "",
     );
+    console.log("[Payment] Order created:", data);
     const order = data.order || data.data || data;
     return order;
   };

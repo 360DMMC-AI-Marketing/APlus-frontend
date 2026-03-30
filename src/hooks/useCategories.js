@@ -23,21 +23,9 @@ export function useCategories() {
 
   useEffect(() => {
     if (cachedCategories) return;
-
-    apiClient("/categories")
-      .then((data) => {
-        const list = data.categories || [];
-        if (list.length > 0) {
-          cachedCategories = list;
-          setCategories(list);
-        }
-      })
-      .catch(() => {
-        // API not available yet — fallback categories already set
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    // Backend doesn't have a /categories endpoint yet — use fallback
+    cachedCategories = FALLBACK_CATEGORIES;
+    setLoading(false);
   }, []);
 
   return { categories, loading };

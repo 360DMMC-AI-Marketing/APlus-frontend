@@ -121,7 +121,7 @@ const ProductDetailPage = () => {
       },
       quantity,
     );
-    navigate("/cart");
+    // Stay on product page — user can navigate to cart via navbar icon
   };
 
   const incrementQuantity = () => {

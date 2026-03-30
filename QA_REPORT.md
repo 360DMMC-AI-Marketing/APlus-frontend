@@ -858,3 +858,31 @@ Commented out by user in PaymentPage.jsx.
 *Updated during QA session on 2026-03-27.*
 *Frontend: APlus-frontend (branch: Samia)*
 *Backend: APlusMedDepot-Backend (branch: develop, commit 54f07f2)*
+
+---
+
+## Update — 2026-03-31 (End-to-End Manual Testing)
+
+### Frontend Fixes Applied
+
+**Homepage categories not filtering** — ProductsPage now reads the `?category=` URL query parameter from the homepage category links and pre-selects that category in the sidebar filter. Previously clicking a category on the homepage showed all products.
+
+**Add to cart auto-redirect removed** — Clicking "Add to Cart" on the product detail page no longer auto-redirects to the cart page. User stays on the product page and can continue browsing. Cart badge in the navbar still updates.
+
+**Customer profile recent orders fixed** — The Recent Orders section on the customer profile page (/profile) was showing "No orders yet" even when orders existed. Fixed by: (1) correcting the response parsing to read `data.orders` instead of `data.data`, (2) fetching full order details (GET /orders/:id) for each order to get item names and quantities, (3) now shows the 2 most recent orders with product names, quantities, line totals, and shipping address.
+
+### Issues Requiring Backend/DevOps Action (Not Frontend)
+
+**Turnstile CAPTCHA not loading (Error 110200)** — The Cloudflare Turnstile site key is not authorized for the current domains. Fix: Go to Cloudflare Dashboard → Turnstile → edit the widget → add `localhost` and the Vercel app domain (e.g., `your-app.vercel.app`) to the allowed domains list.
+
+**Vendor double approval required** — After admin approves a vendor in /admin/vendors, the vendor still cannot log in because the user account also needs separate approval in /admin/users. Backend dev needs to auto-approve the user record when the vendor/supplier is approved, so admins don't have to approve twice.
+
+**Stripe/PayPal payments fail on production (Vercel + Render)** — Both payment methods return "Invalid Request Data" on the deployed Vercel app but work correctly on localhost. The production Render backend is either outdated (not deployed with latest fixes) or the production Supabase database still has Row Level Security enabled on the orders, order_items, and order_status_history tables. Backend dev needs to: (1) deploy the latest backend code to Render, and (2) verify RLS is disabled on those three tables in the production Supabase project.
+
+**Categories endpoint 404** — The backend does not have a GET /api/categories endpoint. The frontend console shows 404 errors for this call but it is harmless — the frontend already falls back to a hardcoded list of 11 official categories. No action needed unless the backend team wants to add this endpoint.
+
+---
+
+*Updated during QA session on 2026-03-31.*
+*Frontend: APlus-frontend (branch: Samia)*
+*Backend: APlusMedDepot-Backend (branch: develop, commit c0f35c6)*

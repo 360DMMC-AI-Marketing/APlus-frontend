@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Building2, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Package } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { getOrders } from '../api/orders';
+import { getOrders, getOrderById } from '../api/orders';
 import { updateProfile, changePassword } from '../api/users';
 import { Link } from 'react-router-dom';
 
@@ -24,10 +24,23 @@ const CustomerProfile = () => {
   const [pwdError, setPwdError] = useState('');
 
   useEffect(() => {
-    getOrders({ limit: 3 })
-      .then((data) => {
-        const list = data.data || data;
-        setRecentOrders(Array.isArray(list) ? list.slice(0, 3) : []);
+    getOrders({ limit: 2 })
+      .then(async (data) => {
+        const list = data.orders || data.data || data;
+        const orderList = Array.isArray(list) ? list.slice(0, 2) : [];
+        // Fetch full details (with items) for each order
+        const detailed = await Promise.all(
+          orderList.map(async (order) => {
+            try {
+              const detail = await getOrderById(order.id);
+              const full = detail.order || detail.data || detail;
+              return { ...order, ...full };
+            } catch {
+              return order;
+            }
+          })
+        );
+        setRecentOrders(detailed);
       })
       .catch(() => setRecentOrders([]));
   }, []);
@@ -112,28 +125,47 @@ const CustomerProfile = () => {
           {recentOrders.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-6">No orders yet</p>
           ) : (
-            <div className="space-y-3">
-              {recentOrders.map(order => (
-                <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <Package className="w-4 h-4 text-primary" />
+            <div className="space-y-4">
+              {recentOrders.map(order => {
+                const items = order.items || order.order_items || [];
+                return (
+                  <div key={order.id} className="p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Package className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-neutral text-sm">{order.order_number || order.id}</p>
+                          <p className="text-xs text-gray-400">{new Date(order.created_at || order.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-primary text-sm">${Number(order.total_amount || order.total || 0).toFixed(2)}</p>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                          order.status === 'payment_confirmed' || order.status === 'awaiting_fulfillment' ? 'bg-yellow-100 text-yellow-700' :
+                          order.status === 'fully_shipped' || order.status === 'partially_shipped' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>{(order.status || 'pending').replace(/_/g, ' ')}</span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-neutral text-sm">{order.order_number || order.id}</p>
-                      <p className="text-xs text-gray-400">{new Date(order.created_at || order.date).toLocaleDateString()}</p>
-                    </div>
+                    {items.length > 0 && (
+                      <div className="ml-11 space-y-1.5 border-t border-gray-200 pt-2">
+                        {items.slice(0, 3).map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-xs">
+                            <span className="text-gray-600">{item.name || item.product_name} <span className="text-gray-400">× {item.quantity}</span></span>
+                            <span className="font-semibold text-neutral">${(Number(item.unit_price || item.price || 0) * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {items.length > 3 && (
+                          <p className="text-xs text-gray-400">+ {items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary text-sm">${Number(order.total_amount || order.total || 0).toFixed(2)}</p>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                      order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                      order.status === 'in_transit' || order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>{(order.status || '').replace('_', ' ')}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

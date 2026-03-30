@@ -1,10 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Search, ChevronUp, ChevronDown, ShieldCheck, RefreshCw } from "lucide-react";
 import { useCategories } from "../hooks/useCategories";
 import { useCartStore } from "../store/cartStore";
 import { getProducts } from "../api/products";
-import toast from "react-hot-toast";
 import { inferCategory } from "../utils/inferCategory";
 
 const CATEGORY_COLORS = [
@@ -26,7 +25,9 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Products");
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get("category") || "All Products";
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedPriceRange, setSelectedPriceRange] = useState(null);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState("default");

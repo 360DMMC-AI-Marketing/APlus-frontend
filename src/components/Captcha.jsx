@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const SITE_KEY = import.meta.env.VITE_CAPTCHA_SITE_KEY || "";
+const SITE_KEY = import.meta.env.VITE_CAPTCHA_SITE_KEY || import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 const PROVIDER = import.meta.env.VITE_CAPTCHA_PROVIDER || "turnstile"; // "recaptcha" | "turnstile"
 
 let scriptLoaded = false;
