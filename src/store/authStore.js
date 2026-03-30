@@ -10,10 +10,10 @@ export const useAuthStore = create(
       error: null,
 
       // Login — calls real backend API
-      login: async (email, password) => {
+      login: async (email, password, captchaToken) => {
         set({ loading: true, error: null });
         try {
-          const user = await apiLogin(email, password);
+          const user = await apiLogin(email, password, captchaToken);
           set({ user, loading: false });
           return { success: true };
         } catch (err) {
@@ -24,7 +24,7 @@ export const useAuthStore = create(
       },
 
       // Register — calls real backend API
-      register: async (formData, userType = 'customer') => {
+      register: async (formData, userType = 'customer', captchaToken = null) => {
         set({ loading: true, error: null });
         try {
           // Backend accepts 'customer' or 'supplier' (not 'vendor')
@@ -48,7 +48,7 @@ export const useAuthStore = create(
             }),
           };
 
-          await apiRegister(payload);
+          await apiRegister(payload, captchaToken);
           set({ loading: false });
 
           const messages = {

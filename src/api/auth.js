@@ -1,11 +1,15 @@
 import { apiClient } from "./client";
 
-export async function login(email, password) {
-  const data = await apiClient.post("/auth/login", { email, password });
+export async function login(email, password, captchaToken) {
+  const body = { email, password };
+  if (captchaToken) body.captchaToken = captchaToken;
+  const data = await apiClient.post("/auth/login", body);
   localStorage.setItem("accessToken", data.session.accessToken);
   return data.user;
 }
 
-export async function register(userData) {
-  return apiClient.post("/auth/register", userData);
+export async function register(userData, captchaToken) {
+  const body = { ...userData };
+  if (captchaToken) body.captchaToken = captchaToken;
+  return apiClient.post("/auth/register", body);
 }

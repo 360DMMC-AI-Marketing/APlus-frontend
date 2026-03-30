@@ -3,9 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { LogIn, AlertCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import Captcha from "../components/Captcha";
 
 const LoginPage = () => {
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
   const navigate = useNavigate();
   const { login, loading } = useAuthStore();
   const {
@@ -16,7 +18,7 @@ const LoginPage = () => {
 
   const onSubmit = async (data) => {
     setError("");
-    const result = await login(data.email, data.password);
+    const result = await login(data.email, data.password, captchaToken || undefined);
     if (result.success) {
       navigate("/products");
     } else {
@@ -130,6 +132,8 @@ const LoginPage = () => {
                 Forgot password?
               </Link>
             </div>
+
+            <Captcha onToken={setCaptchaToken} />
 
             <button
               type="submit"

@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { User, Store, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import Captcha from '../components/Captcha';
 
 const RegisterPage = () => {
   const [accountType, setAccountType] = useState('customer'); // 'customer' | 'vendor'
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
   const navigate = useNavigate();
   const { register: registerUser, loading } = useAuthStore();
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm();
@@ -23,7 +25,7 @@ const RegisterPage = () => {
   const onSubmit = async (data) => {
     setError('');
     setSuccess('');
-    const result = await registerUser(data, accountType);
+    const result = await registerUser(data, accountType, captchaToken || undefined);
     if (result.success) {
       setSuccess(result.message + ' Check your email for a verification code.');
       setTimeout(() => navigate(`/verify-email?email=${encodeURIComponent(data.email)}`), 2000);
@@ -306,6 +308,8 @@ const RegisterPage = () => {
               </label>
               {errors.terms && <p className="mt-1 text-xs text-red-600">{errors.terms.message}</p>}
             </div>
+
+            <Captcha onToken={setCaptchaToken} />
 
             {/* ── Submit ── */}
             <button type="submit" disabled={loading || !!success} className="w-full btn-medical disabled:opacity-50 disabled:cursor-not-allowed">
