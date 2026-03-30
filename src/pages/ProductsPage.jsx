@@ -359,82 +359,59 @@ const ProductsPage = () => {
                   return (
                     <div
                       key={product.id}
-                      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow group"
+                      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 flex flex-col"
                     >
                       <Link to={`/products/${product.id}`} className="block relative">
                         <img
                           src={product.images?.[0] || "/placeholder.svg"}
                           alt={product.name}
-                          className="w-full h-72 object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                          className="w-full h-48 object-cover"
                         />
-                        {/* Badges */}
-                        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5">
-                          <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded shadow">
-                            SAMPLE - Not For Purchase
+                        {product.category && (
+                          <span className="absolute top-3 left-3 bg-white text-primary border border-primary text-xs font-semibold px-2.5 py-1 rounded-full">
+                            {product.category}
                           </span>
-                          {fdaStatus && (
-                            <span className="bg-secondary text-white text-xs font-bold px-2.5 py-1 rounded shadow inline-flex items-center gap-1">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              {fdaStatus}
-                            </span>
-                          )}
-                        </div>
+                        )}
+                        {fdaStatus && (
+                          <span className="absolute top-10 left-3 bg-green-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            {fdaStatus}
+                          </span>
+                        )}
                       </Link>
 
-                      <div className="p-6">
+                      <div className="p-4 flex flex-col flex-1">
+                        <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded mb-1 w-fit">
+                          SAMPLE - Not For Purchase
+                        </span>
                         <Link to={`/products/${product.id}`}>
-                          <h3 className="font-bold text-xl text-neutral hover:text-primary transition-colors mb-1">
+                          <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-1 hover:text-primary transition-colors line-clamp-2">
                             {product.name}
                           </h3>
                         </Link>
 
-                        {product.category && (
-                          <p className="text-sm text-gray-400 mb-4">
-                            {product.category}
-                          </p>
-                        )}
-
                         {supplier && (
-                          <p className="text-gray-500 mb-4">
+                          <p className="text-xs text-gray-500 mb-3">
                             {supplier}
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between">
-                          <p className="text-2xl font-bold text-primary">
-                            ${Number(product.price).toFixed(2)}
-                          </p>
-                          <button
-                            className="btn-medical py-2.5 px-6"
-                            onClick={() => {
-                              addItem(
-                                {
-                                  id: product.id,
-                                  name: product.name || "",
-                                  price: Number(product.price) || 0,
-                                  stock:
-                                    product.stockQuantity ??
-                                    product.stock_quantity ??
-                                    product.stock ??
-                                    0,
-                                  supplier:
-                                    product.supplierName ||
-                                    product.supplier ||
-                                    "",
-                                  supplierId:
-                                    product.supplierId ||
-                                    product.supplier_id ||
-                                    "",
-                                  image:
-                                    product.images?.[0] || "/placeholder.svg",
-                                  category: product.category || "",
-                                },
-                                1,
-                              );
-                            }}
+                        <div className="mt-auto">
+                          <div className="flex items-end justify-between mb-3">
+                            <span className="text-lg font-bold text-primary">
+                              ${Number(product.price).toFixed(2)}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {product.stockQuantity ?? product.stock_quantity ?? product.stock ?? 0} in stock
+                            </span>
+                          </div>
+
+                          <Link
+                            to={`/products/${product.id}`}
+                            className="block w-full text-center border-2 border-primary text-primary font-semibold py-2 rounded-lg hover:bg-primary hover:text-white transition-colors text-sm"
                           >
-                            Add to Cart
-                          </button>
+                            View Details
+                          </Link>
                         </div>
                       </div>
                     </div>
