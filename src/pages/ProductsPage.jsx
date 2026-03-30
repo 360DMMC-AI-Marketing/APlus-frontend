@@ -39,7 +39,7 @@ const ProductCard = ({ product }) => {
       <Link to={`/products/${product.id}`} className="relative block">
         <img src={image} alt={product.name} className="w-full h-48 object-cover" />
         {product.category && (
-          <span className="absolute top-3 left-3 bg-primary text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+          <span className="absolute top-3 left-3 bg-white text-primary border border-primary text-xs font-semibold px-2.5 py-1 rounded-full">
             {product.category}
           </span>
         )}
@@ -53,6 +53,9 @@ const ProductCard = ({ product }) => {
 
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
+        <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded mb-1 w-fit">
+          SAMPLE - Not For Purchase
+        </span>
         <Link to={`/products/${product.id}`}>
           <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-1 hover:text-primary transition-colors line-clamp-2">
             {product.name}
