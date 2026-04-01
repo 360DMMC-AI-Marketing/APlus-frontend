@@ -255,7 +255,7 @@ const CheckoutPage = () => {
 
                 <button
                   type="submit"
-                  className="w-full btn-medical"
+                  className="w-full btn-medical flex items-center justify-center gap-2"
                 >
                   Continue to Payment
                   <CreditCard className="w-5 h-5" />

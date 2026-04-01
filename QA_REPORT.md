@@ -886,3 +886,28 @@ Commented out by user in PaymentPage.jsx.
 *Updated during QA session on 2026-03-31.*
 *Frontend: APlus-frontend (branch: Samia)*
 *Backend: APlusMedDepot-Backend (branch: develop, commit c0f35c6)*
+
+---
+
+## Update — 2026-04-01
+
+**Navbar logo updated** — Replaced the full APMD logo with APMD_LOGO.png (icon without tagline) plus the "APlusMedDepot" text beside it — "APlus" in red, "MedDepot" in blue, matching the original branding from earlier commits.
+
+**Favicon updated** — Changed browser tab icon to use APMD_FULL_LOGO.jpg (the full logo with tagline). Updated index.html to point to the new favicon file.
+
+**Add to Cart button cleaned up** — Removed supplier name from the "Add to Cart" button on the product detail page. Now just says "Add to Cart" instead of "Add to Cart — Supplier Name".
+
+**Code cleanup** — Removed unused imports (React, useNavigate, toast) from ProductDetailPage.jsx.
+
+**Product detail page consistency** — Description section now always visible, shows "No description available." when empty. Key Features section now always visible, shows "No key features listed." when empty. Specification data is now merged into Key Features (e.g., "Accuracy: ±3 mmHg") instead of showing in a separate section. The standalone Specifications section has been removed. The fda_status field is filtered out from specs since it's already displayed as a badge.
+
+**Single supplier card styling** — Updated the single-supplier price card to match the comparison section styling (same pink background, border, and rounded corners).
+
+**Checkout button alignment** — Fixed "Continue to Payment" button on checkout page — icon was on a separate line, now inline with text.
+
+**Homepage category images fixed** — Two categories ("Incontinence Care" and "Skin Biologics") had broken images. The categoryImages array only had 4 URLs for 8 categories, and one URL was broken. Expanded to 8 unique Unsplash URLs so each category has its own working image.
+
+---
+
+*Updated on 2026-04-01.*
+*Frontend: APlus-frontend (branch: Samia)*
