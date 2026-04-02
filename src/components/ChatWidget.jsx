@@ -4,7 +4,6 @@ import { MessageCircle, X, Send } from "lucide-react";
 const WEBHOOK_URL =
   "https://chi-360dmmc.app.n8n.cloud/webhook/03c8c541-1822-4471-a897-c879683ead0d/chat";
 const SESSION_KEY = "apmd-chat-session-id";
-const MESSAGES_KEY = "apmd-chat-messages";
 
 function getOrCreateSessionId() {
   let id = localStorage.getItem(SESSION_KEY);
@@ -13,21 +12,6 @@ function getOrCreateSessionId() {
     localStorage.setItem(SESSION_KEY, id);
   }
   return id;
-}
-
-function loadMessages() {
-  try {
-    const raw = localStorage.getItem(MESSAGES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveMessages(msgs) {
-  try {
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(msgs));
-  } catch {}
 }
 
 const TypingDots = () => (
@@ -46,7 +30,7 @@ const TypingDots = () => (
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [messages, setMessages] = useState(loadMessages);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -68,11 +52,6 @@ const ChatWidget = () => {
       )
     );
   };
-
-  // Persist messages
-  useEffect(() => {
-    if (messages.length > 0) saveMessages(messages);
-  }, [messages]);
 
   // Auto-scroll
   useEffect(() => {
@@ -160,7 +139,6 @@ const ChatWidget = () => {
     localStorage.setItem(SESSION_KEY, newId);
     sessionIdRef.current = newId;
     setMessages([]);
-    localStorage.removeItem(MESSAGES_KEY);
   };
 
   return (

@@ -369,13 +369,8 @@ const ProductsPage = () => {
                           alt={product.name}
                           className="w-full h-48 object-cover"
                         />
-                        {product.category && (
-                          <span className="absolute top-3 left-3 bg-white text-primary border border-primary text-xs font-semibold px-2.5 py-1 rounded-full">
-                            {product.category}
-                          </span>
-                        )}
                         {fdaStatus && (
-                          <span className="absolute top-10 left-3 bg-green-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
+                          <span className="absolute top-3 left-3 bg-green-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
                             <ShieldCheck className="w-3 h-3" />
                             {fdaStatus}
                           </span>
