@@ -33,8 +33,12 @@ const HomePage = () => {
   const categoryImages = [
     'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
     'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
-    'https://images.unsplash.com/photo-1582719366037-2c4d7c1a0413?w=400',
-    'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
+    'https://images.unsplash.com/photo-1581595220892-b0739db3ba8c?w=400',
+    'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400',
+    'https://images.unsplash.com/photo-1612277795421-9bc7706a4a34?w=400',
+    'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=400',
+    'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400',
+    'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400',
   ];
 
   return (

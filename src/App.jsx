@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore';
 
 // Layout Components
 import Navbar from './components/Navbar';
+import ChatWidget from './components/ChatWidget';
 import Footer from './components/Footer';
 import VendorLayout from './components/VendorLayout';
 
@@ -70,6 +71,7 @@ function App() {
   return (
     <Router>
       <Toaster position="top-right" toastOptions={{ duration: 2500, style: { borderRadius: '12px', padding: '12px 16px', fontSize: '14px' } }} />
+      <ChatWidget />
       <div className="min-h-screen flex flex-col">
         <Routes>
           

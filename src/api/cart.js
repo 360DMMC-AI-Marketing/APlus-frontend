@@ -26,13 +26,20 @@ export async function clearBackendCart() {
 // Sync frontend cart to backend cart
 export async function syncCartToBackend(items) {
   // Clear existing backend cart first
-  await clearBackendCart();
+  try {
+    await clearBackendCart();
+  } catch (err) {
+    console.error("[Cart] Clear failed:", err.status, err.message, err.data);
+  }
 
   // Add each frontend item to backend cart
   for (const item of items) {
-    await addCartItem(
-      item.id,
-      item.quantity
-    );
+    try {
+      console.log("[Cart] Adding item:", item.id, "qty:", item.quantity);
+      await addCartItem(item.id, item.quantity);
+    } catch (err) {
+      console.error("[Cart] Add item failed:", item.id, err.status, err.message, err.data);
+      throw err;
+    }
   }
 }

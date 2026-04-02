@@ -32,12 +32,16 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-center gap-2">
             <img
-              src="/APMD_FULL_LOGO.png"
-              alt="APMD Medical Distribution Network"
-              className="h-[100px] w-auto object-contain"
+              src="/APMD_LOGO.png"
+              alt="APMD"
+              className="h-16 w-auto object-contain"
             />
+            <span className="font-display text-2xl text-secondary">
+              <span className="text-primary">APlus</span>
+              <span className="text-lightblue">MedDepot</span>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}

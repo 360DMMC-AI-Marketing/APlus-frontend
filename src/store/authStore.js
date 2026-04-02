@@ -42,16 +42,14 @@ export const useAuthStore = create(
           };
 
           // Include vendor/supplier-specific fields when registering as supplier
+          // Only send fields the backend schema accepts
           if (backendRole === 'supplier') {
+            payload.companyName = formData.companyName || undefined;
             payload.taxId = formData.taxId || undefined;
             payload.businessAddress = formData.businessAddress || undefined;
-            payload.businessPhone = formData.businessPhone || undefined;
-            payload.website = formData.website || undefined;
             payload.yearsInBusiness = formData.yearsInBusiness ? Number(formData.yearsInBusiness) : undefined;
             payload.businessLicense = formData.businessLicense || undefined;
-            payload.fdaRegistration = formData.fdaRegistration || undefined;
             payload.categories = formData.categories || undefined;
-            payload.position = formData.position || undefined;
           }
 
           await apiRegister(payload, captchaToken);

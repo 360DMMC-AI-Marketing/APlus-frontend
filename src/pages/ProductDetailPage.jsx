@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import {
   ShoppingCart,
   ArrowLeft,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "../store/cartStore";
 import { getProductById, getProducts } from "../api/products";
-import toast from "react-hot-toast";
+
 import { inferCategory } from "../utils/inferCategory";
 
 const getFdaBadge = (fdaStatus) => {
@@ -33,7 +33,6 @@ const getFdaBadge = (fdaStatus) => {
 
 const ProductDetailPage = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
@@ -121,7 +120,7 @@ const ProductDetailPage = () => {
       },
       quantity,
     );
-    navigate("/cart");
+    // Stay on product page — user can navigate to cart via navbar icon
   };
 
   const incrementQuantity = () => {
@@ -135,13 +134,17 @@ const ProductDetailPage = () => {
   const fdaLabel = rawFda === "510k" ? "FDA 510(k) Cleared" : rawFda === "approved" ? "FDA Approved" : rawFda;
   const fdaBadge = getFdaBadge(fdaLabel);
   const specs = product.specifications || {};
-  const hasSpecs = Object.keys(specs).length > 0;
   const description = product.description || "";
-  const features = description
+
+  // Build key features from description sentences + specifications
+  const descFeatures = description
     .split(/\n|\.(?=\s)/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 10 && s.length < 120)
-    .slice(0, 5);
+    .filter((s) => s.length > 10 && s.length < 120);
+  const specFeatures = Object.entries(specs)
+    .filter(([key]) => key !== "fda_status")
+    .map(([key, value]) => `${key}: ${value}`);
+  const features = [...descFeatures, ...specFeatures].slice(0, 8);
 
   const totalPrice = (Number(activeSupplier.price) || 0) * quantity;
 
@@ -196,11 +199,9 @@ const ProductDetailPage = () => {
             </h1>
 
             {/* Short description */}
-            {description && (
-              <p className="text-gray-500 text-sm leading-relaxed">
-                {description.split("\n")[0]}
-              </p>
-            )}
+            <p className="text-gray-500 text-sm leading-relaxed">
+              {description ? description.split("\n")[0] : "No description available."}
+            </p>
 
             {/* ── Compare Prices ── */}
             {hasMultipleSuppliers ? (
@@ -269,7 +270,7 @@ const ProductDetailPage = () => {
               </div>
             ) : (
               /* Single supplier */
-              <div className="bg-red-50/40 rounded-xl p-5">
+              <div className="rounded-2xl border border-red-100 bg-[#fff5f5] p-5">
                 <p className="text-4xl font-bold text-primary">
                   ${Number(activeSupplier.price || 0).toFixed(2)}
                   <span className="text-sm font-normal text-gray-500 ml-2">per unit</span>
@@ -326,13 +327,13 @@ const ProductDetailPage = () => {
               className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-4 rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-[15px]"
             >
               <ShoppingCart className="w-5 h-5" />
-              Add to Cart — {activeSupplier.supplier}
+              Add to Cart
             </button>
 
             {/* Key Features */}
-            {features.length > 0 && (
-              <div>
-                <h3 className="font-display text-lg text-neutral mb-4">Key Features</h3>
+            <div>
+              <h3 className="font-display text-lg text-neutral mb-4">Key Features</h3>
+              {features.length > 0 ? (
                 <ul className="space-y-3">
                   {features.map((f, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-neutral">
@@ -341,23 +342,10 @@ const ProductDetailPage = () => {
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-
-            {/* Specifications */}
-            {hasSpecs && (
-              <div className="bg-gray-50 rounded-2xl p-6">
-                <h3 className="font-display text-lg text-neutral mb-4 italic">Specifications</h3>
-                <div className="grid grid-cols-2 gap-x-10 gap-y-4">
-                  {Object.entries(specs).map(([key, value]) => (
-                    <div key={key}>
-                      <p className="text-xs text-gray-400 mb-0.5">{key}</p>
-                      <p className="text-sm font-bold text-neutral">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-400">No key features listed.</p>
+              )}
+            </div>
 
             {/* Trust Badges */}
             <div className="grid grid-cols-4 gap-3 pt-2">
