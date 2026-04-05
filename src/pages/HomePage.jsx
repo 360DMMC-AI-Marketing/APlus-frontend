@@ -30,16 +30,16 @@ const HomePage = () => {
     },
   ];
 
-  const categoryImages = [
-    'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
-    'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=400',
-    'https://images.unsplash.com/photo-1581595220892-b0739db3ba8c?w=400',
-    'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400',
-    'https://images.unsplash.com/photo-1612277795421-9bc7706a4a34?w=400',
-    'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=400',
-    'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400',
-    'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400',
-  ];
+  const categoryImageMap = {
+    "Wound Care": "https://i.ibb.co.com/zhw8mH94/wound-Care.jpg",
+    "Vascular Access": "https://i.ibb.co.com/zWqX9scr/vascular-Access.jpg",
+    "Incontinence Care": "https://i.ibb.co.com/VYV4mmdr/incontinence-Care.jpg",
+    "Gloves": "https://i.ibb.co.com/Kph7PTKW/gloves.jpg",
+    "Nursing Care Supplies": "https://i.ibb.co.com/0RfXrX7b/nursing-Care-Supplies.jpg",
+    "Enteral Feeding Tubes": "https://i.ibb.co.com/SbYh857/enteral-Feeding.webp",
+    "Skin Biologics": "https://i.ibb.co.com/Pzw14wNN/skin-Biologistic.jpg",
+    "Advanced Wound Care": "https://i.ibb.co.com/mVH5tzvg/advanced-Wound-Care.jpg",
+  };
 
   return (
     <div className="bg-white">
@@ -148,7 +148,7 @@ const HomePage = () => {
               >
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={categoryImages[index % categoryImages.length]}
+                    src={categoryImageMap[category.name] || "/placeholder.svg"}
                     alt={category.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   />

@@ -1085,3 +1085,16 @@ _Frontend: APlus-frontend (branch: Samia)_
 
 _Updated on 2026-04-03._
 _Frontend: APlus-frontend (branch: Samia)_
+
+---
+
+## Update — 2026-04-05
+
+**Homepage category images switched to ImgBB** — Local images in public/home_category_img/ were not loading despite files being valid. Switched all 8 category images to externally hosted ImgBB URLs for reliable loading. Each category now has its own dedicated image mapped by name (Wound Care, Vascular Access, Incontinence Care, Gloves, Nursing Care Supplies, Enteral Feeding Tubes, Skin Biologics, Advanced Wound Care).
+
+**Homepage banner reverted** — Trial banner image was tested but reverted back to the original Unsplash image for now.
+
+---
+
+*Updated on 2026-04-05.*
+*Frontend: APlus-frontend (branch: Samia)*
