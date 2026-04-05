@@ -52,7 +52,7 @@ const HomePage = () => {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/APMD_BannerNew.png"
+            src="/apmd_newBanner.png"
             alt="APMD Medical Distribution Network"
             className="w-full h-full object-cover"
           />
@@ -60,7 +60,7 @@ const HomePage = () => {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-          <div className="max-w-2xl animate-fade-in">
+          <div className="max-w-xl animate-fade-in">
             <h1 className="font-display text-5xl md:text-6xl text-white mb-6 leading-tight">
               Professional{" "}
               <span className="text-primary">Medical Supplies</span> Delivered
