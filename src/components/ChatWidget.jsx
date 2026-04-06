@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MessageCircle, X, Send } from "lucide-react";
+import { X, Send } from "lucide-react";
 
 const WEBHOOK_URL =
   "https://chi-360dmmc.app.n8n.cloud/webhook/03c8c541-1822-4471-a897-c879683ead0d/chat";
@@ -16,12 +16,29 @@ function getOrCreateSessionId() {
 
 const TypingDots = () => (
   <div className="flex items-start gap-2 mb-3">
-    <img src="/APMD_FULL_LOGO.jpg" alt="" className="w-7 h-7 rounded-full flex-shrink-0 mt-1 object-contain bg-white border border-gray-200 p-1" />
+    <img
+      src="/APMD_FULL_LOGO.jpg"
+      alt=""
+      className="w-7 h-7 rounded-full flex-shrink-0 mt-1 object-contain bg-white border border-gray-200 p-1"
+    />
     <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-      <div className="flex space-x-1.5 items-center" aria-live="polite" aria-label="Assistant is typing">
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+      <div
+        className="flex space-x-1.5 items-center"
+        aria-live="polite"
+        aria-label="Assistant is typing"
+      >
+        <span
+          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: "0ms" }}
+        />
+        <span
+          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: "150ms" }}
+        />
+        <span
+          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+          style={{ animationDelay: "300ms" }}
+        />
       </div>
     </div>
   </div>
@@ -44,12 +61,18 @@ const ChatWidget = () => {
     const parts = text.split(urlRegex);
     return parts.map((part, i) =>
       urlRegex.test(part) ? (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80 break-all">
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline hover:text-primary/80 break-all"
+        >
           {part}
         </a>
       ) : (
         <span key={i}>{part}</span>
-      )
+      ),
     );
   };
 
@@ -76,7 +99,9 @@ const ChatWidget = () => {
 
   const handleOpen = () => {
     setIsOpen(true);
-    requestAnimationFrame(() => requestAnimationFrame(() => setIsVisible(true)));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => setIsVisible(true)),
+    );
   };
 
   const handleClose = () => {
@@ -109,18 +134,27 @@ const ChatWidget = () => {
         let content;
         try {
           const data = JSON.parse(text);
-          content = data.output || data.message || data.text || JSON.stringify(data);
+          content =
+            data.output || data.message || data.text || JSON.stringify(data);
         } catch {
           content = text;
         }
         setMessages((prev) => [
           ...prev,
-          { id: Date.now() + 1, role: "bot", content: content || "No response received." },
+          {
+            id: Date.now() + 1,
+            role: "bot",
+            content: content || "No response received.",
+          },
         ]);
       } catch {
         setMessages((prev) => [
           ...prev,
-          { id: Date.now() + 1, role: "bot", content: "Sorry, something went wrong. Please try again." },
+          {
+            id: Date.now() + 1,
+            role: "bot",
+            content: "Sorry, something went wrong. Please try again.",
+          },
         ]);
       } finally {
         setIsLoading(false);
@@ -147,11 +181,15 @@ const ChatWidget = () => {
       {!isOpen && (
         <button
           onClick={handleOpen}
-          className="fixed bottom-6 right-6 z-[60] flex items-center gap-2.5 bg-white pl-3 pr-5 py-2.5 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 border border-gray-200"
+          className="fixed bottom-6 right-6 z-[60] flex items-center gap-2.5 bg-gradient-to-r from-lightblue to-blue-600 pl-3 pr-5 py-2.5 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
           aria-label="Open chat"
         >
-          <img src="/APMD_FULL_LOGO.jpg" alt="APMD" className="w-10 h-10 rounded-full object-contain bg-white p-0.5 border border-gray-200 shadow-md" />
-          <span className="text-sm font-semibold text-neutral">Chat Now</span>
+          <img
+            src="/APMD_FULL_LOGO.jpg"
+            alt="APMD"
+            className="w-10 h-10 rounded-full object-contain bg-white p-0.5   shadow-xl"
+          />
+          <span className="text-sm font-semibold text-white">Chat Now</span>
         </button>
       )}
 
@@ -175,7 +213,9 @@ const ChatWidget = () => {
                 className="h-9 w-9 object-contain rounded-full bg-white p-1"
               />
               <div>
-                <p className="text-white font-semibold text-sm">APMD Assistant</p>
+                <p className="text-white font-semibold text-sm">
+                  APMD Assistant
+                </p>
                 <p className="text-gray-300 text-[10px]">Powered by AI</p>
               </div>
             </div>
@@ -202,7 +242,11 @@ const ChatWidget = () => {
             {/* Welcome message if no history */}
             {messages.length === 0 && !isLoading && (
               <div className="flex items-start gap-2 mb-3">
-                <img src="/APMD_FULL_LOGO.jpg" alt="" className="w-7 h-7 rounded-full flex-shrink-0 mt-1 object-contain bg-white border border-gray-200 p-1" />
+                <img
+                  src="/APMD_FULL_LOGO.jpg"
+                  alt=""
+                  className="w-7 h-7 rounded-full flex-shrink-0 mt-1 object-contain bg-white border border-gray-200 p-1"
+                />
                 <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[85%]">
                   <p className="text-sm text-neutral leading-relaxed whitespace-pre-line">
                     Hello! I'm the APMD Assistant. How can I help you today?
@@ -214,15 +258,23 @@ const ChatWidget = () => {
             {messages.map((msg) =>
               msg.role === "bot" ? (
                 <div key={msg.id} className="flex items-start gap-2 mb-3">
-                  <img src="/APMD_FULL_LOGO.jpg" alt="" className="w-7 h-7 rounded-full flex-shrink-0 mt-1 object-contain bg-white border border-gray-200 p-1" />
+                  <img
+                    src="/APMD_FULL_LOGO.jpg"
+                    alt=""
+                    className="w-7 h-7 rounded-full flex-shrink-0 mt-1 object-contain bg-white border border-gray-200 p-1"
+                  />
                   <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[85%]">
-                    <p className="text-sm text-neutral leading-relaxed break-words whitespace-pre-line">{renderMessageContent(msg.content)}</p>
+                    <p className="text-sm text-neutral leading-relaxed break-words whitespace-pre-line">
+                      {renderMessageContent(msg.content)}
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div key={msg.id} className="flex justify-end mb-3">
                   <div className="bg-primary rounded-2xl rounded-tr-sm px-4 py-3 max-w-[85%]">
-                    <p className="text-sm text-white leading-relaxed break-words">{msg.content}</p>
+                    <p className="text-sm text-white leading-relaxed break-words">
+                      {msg.content}
+                    </p>
                   </div>
                 </div>
               ),

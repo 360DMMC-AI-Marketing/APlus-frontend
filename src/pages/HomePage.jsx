@@ -52,7 +52,7 @@ const HomePage = () => {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/apmd_newBanner.png"
+            src="/flippedBannerimg.jpg"
             alt="APMD Medical Distribution Network"
             className="w-full h-full object-cover"
           />
