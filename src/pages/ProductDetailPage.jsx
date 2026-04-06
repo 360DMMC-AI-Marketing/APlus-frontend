@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
   ArrowLeft,
@@ -33,6 +33,7 @@ const getFdaBadge = (fdaStatus) => {
 
 const ProductDetailPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
@@ -40,6 +41,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [showAllSuppliers, setShowAllSuppliers] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const addItem = useCartStore((state) => state.addItem);
 
@@ -47,19 +49,30 @@ const ProductDetailPage = () => {
     setQuantity(1);
     setSelectedSupplierId(null);
     setShowAllSuppliers(false);
+    setSelectedImageIndex(0);
+    setProduct(null);
+    setLoading(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
-    Promise.all([
-      getProductById(id).then((data) => data.data || data),
-      getProducts().then((data) => data.data || data).catch(() => []),
-    ])
-      .then(([raw, allProducts]) => {
+    const baseName = (name) =>
+      (name || "").toLowerCase().replace(/\s*\(.*?\)/g, "").replace(/\s*\d+\s*(pcs|pc|pack|box|ml|g|kg)?$/i, "").trim();
+
+    getProductById(id)
+      .then((data) => {
+        const raw = data.data || data;
         const enriched = { ...raw, category: inferCategory(raw) };
         setProduct(enriched);
-        const productName = (raw.name || "").toLowerCase().trim();
-        const similar = (Array.isArray(allProducts) ? allProducts : []).filter(
-          (p) => p.id !== raw.id && p.status === "active" && p.name && p.name.toLowerCase().trim() === productName
-        );
-        setSimilarProducts(similar);
+
+        // Search for similar products using the base name
+        const productBase = baseName(raw.name);
+        const searchTerm = productBase.split(" ").slice(0, 3).join(" ");
+        return getProducts({ search: searchTerm, limit: 20 }).then((searchData) => {
+          const list = searchData.data || searchData;
+          const similar = (Array.isArray(list) ? list : []).filter(
+            (p) => p.id !== raw.id && p.status === "active" && p.name && baseName(p.name) === productBase
+          );
+          setSimilarProducts(similar);
+        });
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -98,9 +111,10 @@ const ProductDetailPage = () => {
     })),
   ].sort((a, b) => (a.price || 0) - (b.price || 0));
 
+  const currentProductSupplier = allSuppliers.find((s) => s.productId === product.id) || allSuppliers[0];
   const activeSupplier = selectedSupplierId
-    ? allSuppliers.find((s) => s.supplierId === selectedSupplierId) || allSuppliers[0]
-    : allSuppliers[0];
+    ? allSuppliers.find((s) => s.supplierId === selectedSupplierId) || currentProductSupplier
+    : currentProductSupplier;
 
   const hasMultipleSuppliers = allSuppliers.length > 1;
   const visibleSuppliers = showAllSuppliers ? allSuppliers : allSuppliers.slice(0, 2);
@@ -160,7 +174,7 @@ const ProductDetailPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* ── LEFT: Image ── */}
-          <div>
+          <div className="space-y-3">
             <div className="bg-white rounded-2xl border border-gray-200 p-4 relative">
               {fdaBadge && (
                 <span className={`absolute top-6 left-6 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${fdaBadge.color}`}>
@@ -169,11 +183,29 @@ const ProductDetailPage = () => {
                 </span>
               )}
               <img
-                src={product.images?.[0] || "/placeholder.svg"}
+                src={product.images?.[selectedImageIndex] || "/placeholder.svg"}
                 alt={product.name}
-                className="w-full h-[420px] object-cover rounded-xl"
+                className="w-full aspect-square object-cover rounded-xl"
               />
             </div>
+            {/* Thumbnail gallery */}
+            {product.images?.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {product.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImageIndex(idx)}
+                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      selectedImageIndex === idx
+                        ? "border-primary shadow-md"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── RIGHT: Details ── */}
@@ -223,11 +255,18 @@ const ProductDetailPage = () => {
                 <div className="bg-white divide-y divide-gray-100">
                   {visibleSuppliers.map((s, i) => {
                     const isActive = activeSupplier.supplierId === s.supplierId;
+                    const isDifferentProduct = s.productId && s.productId !== product.id;
                     return (
-                      <button
+                      <div
                         key={s.supplierId || i}
-                        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
-                        onClick={() => setSelectedSupplierId(s.supplierId)}
+                        className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (isDifferentProduct) {
+                            navigate(`/products/${s.productId}`);
+                          } else {
+                            setSelectedSupplierId(s.supplierId);
+                          }
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           {isActive ? (
@@ -251,7 +290,7 @@ const ProductDetailPage = () => {
                           </div>
                         </div>
                         <span className="text-lg font-semibold text-neutral">${Number(s.price || 0).toFixed(2)}</span>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

@@ -34,12 +34,25 @@ const ProductsPage = () => {
   const [categoryOpen, setCategoryOpen] = useState(true);
   const [priceOpen, setPriceOpen] = useState(true);
   const [availabilityOpen, setAvailabilityOpen] = useState(true);
-
   const addItem = useCartStore((state) => state.addItem);
   const { categories } = useCategories();
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [categoryCounts, setCategoryCounts] = useState({});
 
-  useEffect(() => {
-    getProducts()
+  // Map frontend sort values to backend params
+  const getSortParams = (sort) => {
+    switch (sort) {
+      case "price_asc": return { sortBy: "price", sortOrder: "asc" };
+      case "price_desc": return { sortBy: "price", sortOrder: "desc" };
+      case "name_asc": return { sortBy: "name", sortOrder: "asc" };
+      default: return { sortBy: "created_at", sortOrder: "desc" };
+    }
+  };
+
+  const fetchAllProducts = (sort = sortBy) => {
+    setLoading(true);
+    const params = { limit: 100, ...getSortParams(sort) };
+    getProducts(params)
       .then((data) => {
         const list = data.data || data;
         const enriched = (Array.isArray(list) ? list : []).map((p) => ({
@@ -47,6 +60,7 @@ const ProductsPage = () => {
           category: inferCategory(p),
         }));
         setProducts(enriched);
+        setTotalProducts(data.pagination?.total || enriched.length);
       })
       .catch((err) => {
         console.error(err);
@@ -54,17 +68,28 @@ const ProductsPage = () => {
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchAllProducts();
   }, []);
 
-  // Count products per category
-  const categoryCounts = useMemo(() => {
+  // Count products per category from loaded products
+  useEffect(() => {
     const counts = {};
     products.forEach((p) => {
       const cat = p.category || "Uncategorized";
       counts[cat] = (counts[cat] || 0) + 1;
     });
-    return counts;
+    setCategoryCounts(counts);
   }, [products]);
+
+  // Re-fetch from backend when sort changes
+  const handleSortChange = (newSort) => {
+    setSortBy(newSort);
+    fetchAllProducts(newSort);
+  };
+
 
   const filteredProducts = useMemo(() => {
     let results = products.filter((product) => {
@@ -92,24 +117,6 @@ const ProductsPage = () => {
       return matchesSearch && matchesCategory && matchesPrice && matchesStock;
     });
 
-    switch (sortBy) {
-      case "price_asc":
-        results = [...results].sort((a, b) => a.price - b.price);
-        break;
-      case "price_desc":
-        results = [...results].sort((a, b) => b.price - a.price);
-        break;
-      case "name_asc":
-        results = [...results].sort((a, b) =>
-          (a.name || "").localeCompare(b.name || ""),
-        );
-        break;
-      case "stock":
-        results = [...results].sort(
-          (a, b) => (b.stockQuantity ?? b.stock_quantity ?? b.stock ?? 0) - (a.stockQuantity ?? a.stock_quantity ?? a.stock ?? 0),
-        );
-        break;
-    }
     return results;
   }, [
     products,
@@ -117,7 +124,6 @@ const ProductsPage = () => {
     selectedCategory,
     selectedPriceRange,
     inStockOnly,
-    sortBy,
   ]);
 
   // Get color for a category
@@ -157,14 +163,13 @@ const ProductsPage = () => {
           </div>
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => handleSortChange(e.target.value)}
             className="px-4 py-3 border-2 border-gray-200 rounded-xl bg-white focus:border-primary focus:outline-none text-sm font-medium text-neutral min-w-[180px] cursor-pointer"
           >
-            <option value="default">Default</option>
+            <option value="default">Newest First</option>
             <option value="price_asc">Price: Low to High</option>
             <option value="price_desc">Price: High to Low</option>
             <option value="name_asc">Name: A–Z</option>
-            <option value="stock">In Stock First</option>
           </select>
         </div>
 
@@ -181,8 +186,8 @@ const ProductsPage = () => {
                       setSelectedCategory("All Products");
                       setSelectedPriceRange(null);
                       setInStockOnly(false);
-                      setSortBy("default");
                       setSearchQuery("");
+                      handleSortChange("default");
                     }}
                     className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                     title="Clear all filters"
@@ -225,36 +230,33 @@ const ProductsPage = () => {
                             : "bg-gray-100 text-gray-500"
                         }`}
                       >
-                        {products.length}
+                        {totalProducts || products.length}
                       </span>
                     </button>
 
                     {/* Dynamic Categories */}
-                    {categories.map((cat) => {
-                      const count = categoryCounts[cat.name] || 0;
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => setSelectedCategory(cat.name)}
-                          className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                          selectedCategory === cat.name
+                            ? "bg-primary text-white font-semibold"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <span>{cat.name}</span>
+                        {categoryCounts[cat.name] != null && (
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                             selectedCategory === cat.name
-                              ? "bg-primary text-white font-semibold"
-                              : "text-gray-600 hover:bg-gray-50"
-                          }`}
-                        >
-                          <span>{cat.name}</span>
-                          <span
-                            className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              selectedCategory === cat.name
-                                ? "bg-white/20 text-white"
-                                : "bg-gray-100 text-gray-500"
-                            }`}
-                          >
-                            {count}
+                              ? "bg-white/20 text-white"
+                              : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {categoryCounts[cat.name]}
                           </span>
-                        </button>
-                      );
-                    })}
+                        )}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -367,7 +369,7 @@ const ProductsPage = () => {
                         <img
                           src={product.images?.[0] || "/placeholder.svg"}
                           alt={product.name}
-                          className="w-full h-48 object-cover"
+                          className="w-full aspect-[4/3] object-cover"
                         />
                         {fdaStatus && (
                           <span className="absolute top-3 left-3 bg-green-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1">
@@ -418,6 +420,7 @@ const ProductsPage = () => {
             ) : (
               <div className="text-center py-10">No products found</div>
             )}
+
           </div>
         </div>
       </div>

@@ -26,7 +26,11 @@ export async function clearBackendCart() {
 // Sync frontend cart to backend cart
 export async function syncCartToBackend(items) {
   // Clear existing backend cart first
-  await clearBackendCart();
+  try {
+    await clearBackendCart();
+  } catch {
+    // ignore — cart may not exist yet
+  }
 
   // Add each frontend item to backend cart
   for (const item of items) {

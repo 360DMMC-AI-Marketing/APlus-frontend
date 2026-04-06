@@ -30,6 +30,7 @@
 The Samia branch was created to integrate the APlus-frontend React app with the real APlusMedDepot backend API, replacing mock data with live API calls. During the QA audit, **18 bugs** were discovered and fixed across API integration, field name mismatches, broken workflows, missing UI components, and role/permission issues. The project now has a functional end-to-end flow for customer shopping, vendor product management, admin approval, and payment processing.
 
 **Key areas of work:**
+
 - Fixed all API endpoint integrations (products, cart, orders, payments, auth)
 - Fixed field name mismatches between frontend (camelCase/snake_case) and backend responses
 - Fixed vendor portal access (role `"supplier"` vs `"vendor"` mismatch)
@@ -45,12 +46,14 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ## 2. Branch History
 
 ### Commits on branch Samia (before QA):
-| Commit | Message | Description |
-|--------|---------|-------------|
-| `dedbf31` | Product System API integration | Initial wiring of product endpoints |
-| `96e6fb3` | API Integration | Full replacement of mock data with real API calls across all pages |
+
+| Commit    | Message                        | Description                                                        |
+| --------- | ------------------------------ | ------------------------------------------------------------------ |
+| `dedbf31` | Product System API integration | Initial wiring of product endpoints                                |
+| `96e6fb3` | API Integration                | Full replacement of mock data with real API calls across all pages |
 
 ### Uncommitted changes (QA audit fixes):
+
 24 files modified, 2 new files created. See Section 4 for per-file details.
 
 ---
@@ -59,40 +62,40 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 
 ### Critical Bugs (Blocking)
 
-| # | Bug | Files Affected | Fix Applied |
-|---|-----|---------------|-------------|
-| 1 | **Product images field mismatch** — frontend read `product.image` (string) but backend returns `product.images` (array of URLs) | ProductsPage, ProductDetailPage, CartPage | Changed to `product.images?.[0] \|\| '/placeholder.svg'` everywhere |
-| 2 | **Stock field mismatch** — frontend read `stock_quantity` but backend returns `stockQuantity` | ProductsPage, ProductDetailPage | Added `stockQuantity` as first fallback in all nullish coalescing chains |
-| 3 | **Supplier name field mismatch** — frontend read `product.supplier` but backend returns `supplierName` | ProductsPage | Changed to `product.supplierName \|\| product.supplier` |
-| 4 | **Vendor role mismatch** — frontend checked `role === 'vendor'` but backend returns `role: 'supplier'` | authStore.js, Navbar, ProtectedRoute | Changed `isVendor()` and `isSupplier()` to check `=== 'supplier'` |
-| 5 | **Registration role mismatch** — frontend sent `role: 'vendor'` but backend only accepts `'supplier'` | authStore.js | Added mapping: `vendor → supplier` before sending to API |
-| 6 | **Registration field mismatch** — frontend sent `company` but backend expects `companyName` | authStore.js | Mapped `companyName: formData.companyName \|\| formData.company` |
-| 7 | **Order history empty** — backend returns `{ orders: [...] }` but frontend read `data.data` | OrderHistoryPage | Changed to `data.orders \|\| data.data \|\| data` |
-| 8 | **Vendor products used wrong API** — called global `GET /products` + broken `user.vendorId` filter | VendorProducts | Switched to `GET /suppliers/products` (auto-filters by auth) |
-| 9 | **Admin products had no approval workflow** — no approve/reject buttons, used wrong API endpoint | AdminProducts | Complete rewrite with approve/reject/request-changes + `GET /admin/products` |
+| #   | Bug                                                                                                                             | Files Affected                            | Fix Applied                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| 1   | **Product images field mismatch** — frontend read `product.image` (string) but backend returns `product.images` (array of URLs) | ProductsPage, ProductDetailPage, CartPage | Changed to `product.images?.[0] \|\| '/placeholder.svg'` everywhere          |
+| 2   | **Stock field mismatch** — frontend read `stock_quantity` but backend returns `stockQuantity`                                   | ProductsPage, ProductDetailPage           | Added `stockQuantity` as first fallback in all nullish coalescing chains     |
+| 3   | **Supplier name field mismatch** — frontend read `product.supplier` but backend returns `supplierName`                          | ProductsPage                              | Changed to `product.supplierName \|\| product.supplier`                      |
+| 4   | **Vendor role mismatch** — frontend checked `role === 'vendor'` but backend returns `role: 'supplier'`                          | authStore.js, Navbar, ProtectedRoute      | Changed `isVendor()` and `isSupplier()` to check `=== 'supplier'`            |
+| 5   | **Registration role mismatch** — frontend sent `role: 'vendor'` but backend only accepts `'supplier'`                           | authStore.js                              | Added mapping: `vendor → supplier` before sending to API                     |
+| 6   | **Registration field mismatch** — frontend sent `company` but backend expects `companyName`                                     | authStore.js                              | Mapped `companyName: formData.companyName \|\| formData.company`             |
+| 7   | **Order history empty** — backend returns `{ orders: [...] }` but frontend read `data.data`                                     | OrderHistoryPage                          | Changed to `data.orders \|\| data.data \|\| data`                            |
+| 8   | **Vendor products used wrong API** — called global `GET /products` + broken `user.vendorId` filter                              | VendorProducts                            | Switched to `GET /suppliers/products` (auto-filters by auth)                 |
+| 9   | **Admin products had no approval workflow** — no approve/reject buttons, used wrong API endpoint                                | AdminProducts                             | Complete rewrite with approve/reject/request-changes + `GET /admin/products` |
 
 ### Moderate Bugs
 
-| # | Bug | Files Affected | Fix Applied |
-|---|-----|---------------|-------------|
-| 10 | **Double cart sync** — `syncCartToBackend()` called in both CheckoutPage and PaymentPage | CheckoutPage, PaymentPage | Removed from CheckoutPage, kept in PaymentPage (closest to order creation) |
-| 11 | **No product images in grid** — ProductsPage cards showed only name/price, no image | ProductsPage | Added `<img>` tag with product thumbnail to grid cards |
-| 12 | **Forgot password link broken** — `href="#"` instead of route link | LoginPage | Changed to `<Link to="/forgot-password">` |
-| 13 | **Password validation too weak** — frontend only checked min 8 chars, backend requires uppercase + lowercase + number + special char | RegisterPage | Added full validation with individual error messages |
-| 14 | **Net30 eligibility hardcoded** — always showed `true` with $50,000 placeholder | PaymentPage, users.js | Wired to real `GET /users/me/credit` endpoint |
-| 15 | **Order status labels mismatched** — frontend had `delivered/shipped/processing`, backend uses `pending_payment/payment_confirmed/awaiting_fulfillment/fully_shipped/delivered/cancelled/refunded` | OrderHistoryPage | Updated all status labels and badge colors to match backend values |
-| 16 | **Vendor pages field name mismatches** — snake_case vs camelCase for `businessName`, `commissionRate`, `currentBalance`, `orderNumber`, `payoutAmount`, `productCategories`, etc. | VendorDashboard, VendorOrders, VendorAnalytics, VendorSettings | Prioritized camelCase fields (matching backend response) with snake_case fallbacks |
-| 17 | **Vendor product response parsing** — backend returns `{ products: [...] }` but frontend read `data.data` | VendorProducts, VendorDashboard, VendorAnalytics | Fixed to `data.products \|\| data.data \|\| data` |
-| 18 | **Navbar user display broken** — showed `user.name` but backend returns `firstName`/`lastName` | Navbar | Changed to `user.firstName + user.lastName` with fallback to `user.email` |
+| #   | Bug                                                                                                                                                                                                | Files Affected                                                 | Fix Applied                                                                        |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 10  | **Double cart sync** — `syncCartToBackend()` called in both CheckoutPage and PaymentPage                                                                                                           | CheckoutPage, PaymentPage                                      | Removed from CheckoutPage, kept in PaymentPage (closest to order creation)         |
+| 11  | **No product images in grid** — ProductsPage cards showed only name/price, no image                                                                                                                | ProductsPage                                                   | Added `<img>` tag with product thumbnail to grid cards                             |
+| 12  | **Forgot password link broken** — `href="#"` instead of route link                                                                                                                                 | LoginPage                                                      | Changed to `<Link to="/forgot-password">`                                          |
+| 13  | **Password validation too weak** — frontend only checked min 8 chars, backend requires uppercase + lowercase + number + special char                                                               | RegisterPage                                                   | Added full validation with individual error messages                               |
+| 14  | **Net30 eligibility hardcoded** — always showed `true` with $50,000 placeholder                                                                                                                    | PaymentPage, users.js                                          | Wired to real `GET /users/me/credit` endpoint                                      |
+| 15  | **Order status labels mismatched** — frontend had `delivered/shipped/processing`, backend uses `pending_payment/payment_confirmed/awaiting_fulfillment/fully_shipped/delivered/cancelled/refunded` | OrderHistoryPage                                               | Updated all status labels and badge colors to match backend values                 |
+| 16  | **Vendor pages field name mismatches** — snake_case vs camelCase for `businessName`, `commissionRate`, `currentBalance`, `orderNumber`, `payoutAmount`, `productCategories`, etc.                  | VendorDashboard, VendorOrders, VendorAnalytics, VendorSettings | Prioritized camelCase fields (matching backend response) with snake_case fallbacks |
+| 17  | **Vendor product response parsing** — backend returns `{ products: [...] }` but frontend read `data.data`                                                                                          | VendorProducts, VendorDashboard, VendorAnalytics               | Fixed to `data.products \|\| data.data \|\| data`                                  |
+| 18  | **Navbar user display broken** — showed `user.name` but backend returns `firstName`/`lastName`                                                                                                     | Navbar                                                         | Changed to `user.firstName + user.lastName` with fallback to `user.email`          |
 
 ### Enhancements Added
 
-| # | Feature | Files Affected |
-|---|---------|---------------|
-| E1 | Toast notifications on "Add to Cart" | ProductsPage, ProductDetailPage, App.jsx (react-hot-toast) |
-| E2 | Image upload UI for vendor products | VendorProducts, suppliers.js |
-| E3 | Image resolution for vendor/admin pages | imageHelper.js (new), VendorProducts, VendorDashboard, VendorAnalytics, AdminProducts |
-| E4 | Admin product approval workflow | AdminProducts (full rewrite), admin.js |
+| #   | Feature                                 | Files Affected                                                                        |
+| --- | --------------------------------------- | ------------------------------------------------------------------------------------- |
+| E1  | Toast notifications on "Add to Cart"    | ProductsPage, ProductDetailPage, App.jsx (react-hot-toast)                            |
+| E2  | Image upload UI for vendor products     | VendorProducts, suppliers.js                                                          |
+| E3  | Image resolution for vendor/admin pages | imageHelper.js (new), VendorProducts, VendorDashboard, VendorAnalytics, AdminProducts |
+| E4  | Admin product approval workflow         | AdminProducts (full rewrite), admin.js                                                |
 
 ---
 
@@ -101,82 +104,97 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ### API Layer
 
 #### `src/api/client.js`
+
 **Route:** N/A (HTTP client)
 **Changes in Samia branch (commits):** Created — base API client with Bearer token auth, convenience helpers (get, post, put, del).
 **Changes in QA audit:** No changes.
 **Status:** Working correctly.
 
 #### `src/api/auth.js`
+
 **Route:** `POST /auth/login`, `POST /auth/register`
 **Changes in Samia branch:** Created — login saves `accessToken` to localStorage, returns `data.user`.
 **Changes in QA audit:** No changes.
 **Status:** Working. Login returns `{ id, email, firstName, lastName, role, status }` + session with tokens.
 
 #### `src/api/cart.js`
+
 **Route:** `GET /cart`, `POST /cart/items`, `PUT /cart/items/:id`, `DELETE /cart/items/:id`, `DELETE /cart`
 **Changes in Samia branch:** Created — cart CRUD + `syncCartToBackend()`.
 **Changes in QA audit:** No changes (sync removal was in CheckoutPage/PaymentPage, not here).
 **Status:** Working. `productId` sent as String, `quantity` as int.
 
 #### `src/api/orders.js`
+
 **Route:** `GET /orders`, `GET /orders/:id`, `POST /orders`
 **Changes in Samia branch:** Created — `createOrder()` sends `shipping_address` with `zip_code` field.
 **Changes in QA audit:** No changes.
 **Status:** Working. Backend reads cart internally, only shipping address needed.
 
 #### `src/api/payments.js`
+
 **Route:** `POST /payments/intent`, `POST /payments/confirm`, `POST /payments/paypal/*`, `POST /payments/net30`
 **Changes in Samia branch:** Created — Stripe, PayPal, Net30 payment functions.
 **Changes in QA audit:** No changes.
 **Status:** Working. Stripe payment tested and confirmed functional.
 
 #### `src/api/products.js`
+
 **Route:** `GET /products`, `GET /products/:id`, `POST /products`, `PUT /products/:id`, `DELETE /products/:id`
 **Changes in Samia branch:** Created — product CRUD for general use.
 **Changes in QA audit:** No changes.
 **Status:** Working. Used by customer-facing pages. Admin/vendor pages now use their own specific endpoints.
 
 #### `src/api/suppliers.js`
+
 **Route:** Multiple `/suppliers/*` endpoints
 **Changes in Samia branch:** Created — supplier profile, products, orders, analytics, payouts, fulfillment, low-stock.
 **Changes in QA audit:**
+
 - Added `createSupplierProduct()` — `POST /suppliers/products`
 - Added `updateSupplierProduct()` — `PUT /suppliers/products/:id`
 - Added `deleteSupplierProduct()` — `DELETE /suppliers/products/:id`
 - Added `uploadSupplierProductImage()` — `POST /suppliers/products/:id/images` (multipart FormData)
 - Added `deleteSupplierProductImage()` — `DELETE /suppliers/products/:id/images/:imageIndex`
-**Status:** Working. All supplier-specific CRUD operations properly routed.
+  **Status:** Working. All supplier-specific CRUD operations properly routed.
 
 #### `src/api/admin.js`
+
 **Route:** Multiple `/admin/*` endpoints
 **Changes in Samia branch:** Created — dashboard, users, orders, suppliers, products (list only), analytics, commissions.
 **Changes in QA audit:**
+
 - Added `getAdminPendingProducts()` — `GET /admin/products/pending`
 - Added `approveProduct()` — `PUT /admin/products/:id/approve`
 - Added `rejectProduct()` — `PUT /admin/products/:id/reject`
 - Added `requestProductChanges()` — `PUT /admin/products/:id/request-changes`
-**Status:** Working. Full admin product approval workflow now available.
+  **Status:** Working. Full admin product approval workflow now available.
 
 #### `src/api/users.js`
+
 **Route:** `GET /users/me`, `PUT /users/me`, `POST /users/me/change-password`, `GET /users/me/credit`
 **Changes in Samia branch:** Created — profile CRUD + password change.
 **Changes in QA audit:**
+
 - Added `getCreditStatus()` — `GET /users/me/credit` (for Net30 eligibility)
-**Status:** Working.
+  **Status:** Working.
 
 ---
 
 ### Store (State Management)
 
 #### `src/store/authStore.js`
+
 **Changes in Samia branch:** Rewritten — removed mock auth, integrated with real `apiLogin`/`apiRegister`.
 **Changes in QA audit:**
+
 - Fixed `isVendor()`: `role === 'vendor'` → `role === 'supplier'`
 - Fixed `isSupplier()`: `role === 'vendor'` → `role === 'supplier'`
 - Fixed `register()`: maps `vendor` → `supplier` for backend role, maps `company` → `companyName`, sends only backend-expected fields
-**Status:** Working. Persists user to localStorage via Zustand `persist`.
+  **Status:** Working. Persists user to localStorage via Zustand `persist`.
 
 #### `src/store/cartStore.js`
+
 **Changes in Samia branch:** Minor adjustments.
 **Changes in QA audit:** No changes.
 **Status:** Working. Frontend-only cart with localStorage persistence. Syncs to backend during checkout.
@@ -186,23 +204,28 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ### Components
 
 #### `src/components/Navbar.jsx`
+
 **Changes in Samia branch:** No changes in commits.
 **Changes in QA audit:**
+
 - Fixed user display: `user.name` → `user.firstName + user.lastName` with fallback to `user.email`
 - Fixed avatar initial: now derives from `firstName`, `name`, or `email`
-**Status:** Working. Shows "Vendor Portal" for suppliers, "Admin Panel" for admins, cart icon for customers. **Note:** User must log out and back in after the role fix for the new user object to take effect in localStorage.
+  **Status:** Working. Shows "Vendor Portal" for suppliers, "Admin Panel" for admins, cart icon for customers. **Note:** User must log out and back in after the role fix for the new user object to take effect in localStorage.
 
 #### `src/components/Footer.jsx`
+
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** No issues found.
 
 #### `src/components/VendorLayout.jsx`
+
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Working. Sidebar navigation for vendor portal sub-pages.
 
 #### `src/components/AdminLayout.jsx`
+
 **Changes in Samia branch:** Minor changes.
 **Changes in QA audit:** No changes.
 **Status:** Working. Sidebar navigation for admin portal sub-pages.
@@ -212,141 +235,168 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ### Public Pages
 
 #### `src/pages/HomePage.jsx`
+
 **Route:** `/`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** No issues found. Uses hardcoded Unsplash images for category cards.
 
 #### `src/pages/LoginPage.jsx`
+
 **Route:** `/login`
 **Changes in Samia branch:** Updated to use `useAuthStore.login()`.
 **Changes in QA audit:**
+
 - Fixed "Forgot password?" link: `href="#"` → `<Link to="/forgot-password">`
 - Updated demo password hint from "any password" to "Test123!"
-**Status:** Working. Redirects to `/products` on success.
+  **Status:** Working. Redirects to `/products` on success.
 
 #### `src/pages/RegisterPage.jsx`
+
 **Route:** `/register`
 **Changes in Samia branch:** Updated to use `useAuthStore.register()`.
 **Changes in QA audit:**
+
 - Added password validation matching backend requirements: uppercase + lowercase + number + special character + min 8 chars
-**Status:** Working. Customer and vendor registration functional. New users require admin approval before login.
+  **Status:** Working. Customer and vendor registration functional. New users require admin approval before login.
 
 #### `src/pages/ProductsPage.jsx`
+
 **Route:** `/products`
 **Changes in Samia branch:** Rewritten to fetch from `GET /products` API.
 **Changes in QA audit:**
+
 - Fixed image field: `product.image` → `product.images?.[0]`
 - Fixed stock field: added `stockQuantity` as first fallback
 - Fixed supplier field: added `supplierName` as first fallback
 - Added product thumbnail images to grid cards (was text-only)
 - Added toast notification on "Add to Cart"
-**Status:** Working. Displays products with images, search, category filters, and "Add to Cart" with toast.
+  **Status:** Working. Displays products with images, search, category filters, and "Add to Cart" with toast.
 
 #### `src/pages/ProductDetailPage.jsx`
+
 **Route:** `/products/:id`
 **Changes in Samia branch:** Rewritten to fetch from `GET /products/:id`.
 **Changes in QA audit:**
+
 - Fixed image field: `product.image` → `product.images?.[0]` (2 locations)
 - Added toast notification on "Add to Cart"
-**Status:** Working. Shows product detail with image, price, stock, supplier selection, quantity picker.
+  **Status:** Working. Shows product detail with image, price, stock, supplier selection, quantity picker.
 
 #### `src/pages/CartPage.jsx`
+
 **Route:** `/cart`
 **Changes in Samia branch:** Updated cart display logic.
 **Changes in QA audit:** No direct changes (image fix is at add-to-cart time in ProductsPage/ProductDetailPage).
 **Status:** Working. Displays cart items with images (from cart store), quantity controls, totals.
 
 #### `src/pages/CheckoutPage.jsx`
+
 **Route:** `/checkout`
 **Changes in Samia branch:** Added cart sync + shipping form.
 **Changes in QA audit:**
+
 - Removed `syncCartToBackend()` call (moved to PaymentPage only)
 - Removed syncing state, loading spinner, error display (now instant navigation)
 - Removed unused `useState` import
-**Status:** Working. Collects shipping info, navigates to payment page.
+  **Status:** Working. Collects shipping info, navigates to payment page.
 
 #### `src/pages/PaymentPage.jsx`
+
 **Route:** `/payment`
 **Changes in Samia branch:** Major rewrite with Stripe/PayPal/Net30 integration.
 **Changes in QA audit:**
+
 - Wired Net30 eligibility to real `GET /users/me/credit` API
 - Replaced hardcoded $50,000 credit limit with real `creditInfo.limit` / `creditInfo.available`
 - Added `getCreditStatus` import
-**Status:** Partially tested. Stripe payment tested and confirmed working. PayPal and Net30 are wired up but NOT tested end-to-end — PayPal depends on valid sandbox credentials in backend `.env`, Net30 depends on user credit eligibility from `GET /users/me/credit`.
+  **Status:** Partially tested. Stripe payment tested and confirmed working. PayPal and Net30 are wired up but NOT tested end-to-end — PayPal depends on valid sandbox credentials in backend `.env`, Net30 depends on user credit eligibility from `GET /users/me/credit`.
 
 #### `src/pages/OrderConfirmationPage.jsx`
+
 **Route:** `/order-confirmation/:orderId`
 **Changes in Samia branch:** Refactored confirmation flow.
 **Changes in QA audit:** No changes.
 **Status:** Working. Shows order ID, clears cart, provides navigation links.
 
 #### `src/pages/OrderHistoryPage.jsx`
+
 **Route:** `/orders`
 **Changes in Samia branch:** Created with order list display.
 **Changes in QA audit:**
+
 - Fixed response parsing: `data.data` → `data.orders || data.data || data`
 - Updated status labels to match backend values: `pending_payment`, `payment_confirmed`, `awaiting_fulfillment`, `partially_shipped`, `fully_shipped`, `delivered`, `cancelled`, `refunded`
 - Updated status badge colors for new statuses
 - Simplified order cards to use list data (`item_count`) since list endpoint doesn't return full items
 - Removed item detail display (not available in list response)
-**Status:** Working. Orders now display correctly with proper status labels.
+  **Status:** Working. Orders now display correctly with proper status labels.
 
 #### `src/pages/CustomerProfile.jsx`
+
 **Route:** `/profile`
 **Changes in Samia branch:** Updated to use real API.
 **Changes in QA audit:** No changes.
 **Status:** Not fully tested. Uses `GET /users/me` and `PUT /users/me`.
 
 #### `src/pages/AboutPage.jsx`
+
 **Route:** `/about`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Static page. No issues.
 
 #### `src/pages/PrivacyPolicyPage.jsx`
+
 **Route:** `/privacy-policy`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Static page. No issues.
 
 #### `src/pages/TermsOfServicePage.jsx`
+
 **Route:** `/terms-of-service`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Static page. No issues.
 
 #### `src/pages/ForgotPasswordPage.jsx`
+
 **Route:** `/forgot-password`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Not tested. Should call `POST /auth/forgot-password`.
 
 #### `src/pages/ResetPasswordPage.jsx`
+
 **Route:** `/reset-password`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Not tested. Should call `POST /auth/reset-password`.
 
 #### `src/pages/EmailVerificationPage.jsx`
+
 **Route:** `/verify-email`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Not tested. Should call `POST /auth/verify-email`.
 
 #### `src/pages/VendorAgreementPage.jsx`
+
 **Route:** `/vendor-agreement`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Static page. No issues.
 
 #### `src/pages/CommissionPolicyPage.jsx`
+
 **Route:** `/commission-policy`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Static page. No issues.
 
 #### `src/pages/SupplierRegisterPage.jsx`
+
 **Route:** Not routed (orphan file)
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
@@ -357,15 +407,18 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ### Admin Pages
 
 #### `src/pages/admin/AdminDashboard.jsx`
+
 **Route:** `/admin`
 **Changes in Samia branch:** Updated to use `getAdminDashboard()`.
 **Changes in QA audit:** No changes.
 **Status:** Not fully tested. Should display pending actions, revenue, orders summary.
 
 #### `src/pages/admin/AdminProducts.jsx`
+
 **Route:** `/admin/products`
 **Changes in Samia branch:** Basic table with wrong API endpoints.
 **Changes in QA audit:**
+
 - **Complete rewrite** — replaced entirely
 - Now uses `GET /admin/products` instead of general `GET /products`
 - Added pending products alert banner with count
@@ -380,33 +433,38 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 - Fixed stock display: `stockQuantity` field
 - Fixed supplier display: `supplierName` field
 - Removed non-functional "Add Product" and "Edit" buttons (admin should not create products directly)
-**Status:** Working. Full approval workflow functional.
+  **Status:** Working. Full approval workflow functional.
 
 #### `src/pages/admin/AdminUsers.jsx`
+
 **Route:** `/admin/users`
 **Changes in Samia branch:** Updated to use admin API.
 **Changes in QA audit:** No changes.
 **Status:** Working. Approve/reject users functional (confirmed by user).
 
 #### `src/pages/admin/AdminVendors.jsx`
+
 **Route:** `/admin/vendors`
 **Changes in Samia branch:** Updated to use admin API.
 **Changes in QA audit:** No changes.
 **Status:** Working. Approve/reject vendors functional (confirmed by user).
 
 #### `src/pages/admin/AdminOrders.jsx`
+
 **Route:** `/admin/orders`
 **Changes in Samia branch:** Updated to use `getAdminOrders()`.
 **Changes in QA audit:** No changes.
 **Status:** Not fully tested. May have similar field name mismatches.
 
 #### `src/pages/admin/AdminAnalytics.jsx`
+
 **Route:** `/admin/analytics`
 **Changes in Samia branch:** Updated to use admin analytics API.
 **Changes in QA audit:** No changes.
 **Status:** Not fully tested.
 
 #### `src/pages/admin/AdminCompliance.jsx`
+
 **Route:** `/admin/compliance`
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
@@ -417,21 +475,25 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ### Vendor Pages
 
 #### `src/pages/vendor/VendorDashboard.jsx`
+
 **Route:** `/vendor`
 **Changes in Samia branch:** Created — fetches profile, products, orders, low stock.
 **Changes in QA audit:**
+
 - Fixed product response parsing: `data.data` → `data.products || data.data`
 - Fixed low stock response parsing: same pattern
 - Fixed vendor profile fields: prioritized camelCase (`businessName`, `commissionRate`, `currentBalance`, `productCategories`)
 - Fixed stock field in product list: added `stockQuantity` fallback
 - Fixed order fields: `orderNumber`, `payoutAmount`, `commissionAmount`, `itemCount`
 - Added image resolution via `resolveProductImages()`
-**Status:** Working. Shows welcome banner, stats, recent orders, products, earnings, low stock alerts.
+  **Status:** Working. Shows welcome banner, stats, recent orders, products, earnings, low stock alerts.
 
 #### `src/pages/vendor/VendorProducts.jsx`
+
 **Route:** `/vendor/products`
 **Changes in Samia branch:** Created — product management with table.
 **Changes in QA audit:**
+
 - **Heavily rewritten**
 - Switched from `getProducts()` to `getSupplierProducts()` (supplier-specific endpoint)
 - Removed broken `user.vendorId` filter (backend auto-filters by auth token)
@@ -448,69 +510,83 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 - Added image resolution on fetch via `resolveProductImages()`
 - Added product status badges and stats row
 - Added proper error display for upload failures
-**Status:** Working. Full CRUD + image upload. New products created as `status: "pending"`.
+  **Status:** Working. Full CRUD + image upload. New products created as `status: "pending"`.
 
 #### `src/pages/vendor/VendorOrders.jsx`
+
 **Route:** `/vendor/orders`
 **Changes in Samia branch:** Created — order list with fulfillment controls.
 **Changes in QA audit:**
+
 - Fixed response parsing: `data.data || data.orders`
 - Fixed order field names: `orderNumber`, `payoutAmount`, `commissionAmount`, `createdAt`
 - Fixed search to use `orderNumber`
-**Status:** Working. Shows orders with status update buttons, payout/commission breakdown.
+  **Status:** Working. Shows orders with status update buttons, payout/commission breakdown.
 
 #### `src/pages/vendor/VendorAnalytics.jsx`
+
 **Route:** `/vendor/analytics`
 **Changes in Samia branch:** Created — revenue trends, category breakdown, top products.
 **Changes in QA audit:**
+
 - Fixed product response parsing: `data.products`
 - Fixed vendor profile fields: camelCase priority
 - Added image resolution via `resolveProductImages()`
-**Status:** Working.
+  **Status:** Working.
 
 #### `src/pages/vendor/VendorSettings.jsx`
+
 **Route:** `/vendor/settings`
 **Changes in Samia branch:** Created — editable profile + read-only business info.
 **Changes in QA audit:**
+
 - Fixed profile field names: `contactName`, `contactEmail` (camelCase priority)
 - Fixed business info fields: `businessName`, `taxId`, `commissionRate`, `approvedAt`, `createdAt`, `productCategories`
 - Fixed update payload: sends `contactName`, `contactEmail` (camelCase, matching backend)
-**Status:** Working. Profile editing functional.
+  **Status:** Working. Profile editing functional.
 
 ---
 
 ### Utilities & Config
 
 #### `src/utils/constants.js`
+
 **Changes in Samia branch:** Created — `CATEGORIES` array.
 **Changes in QA audit:** No changes.
 **Status:** Working.
 
 #### `src/utils/imageHelper.js`
+
 **Changes in Samia branch:** N/A (didn't exist).
 **Changes in QA audit:** **Created** — helper functions for resolving product images.
+
 - `resolveProductImages(product)` — detects raw storage paths vs signed URLs; if raw, fetches via `GET /products/:id` to get signed URLs
 - `getProductImageSrc(product)` — sync helper returning first image URL or placeholder
-**Status:** Working for approved products. See Outstanding Issues for limitations.
+  **Status:** Working for approved products. See Outstanding Issues for limitations.
 
 #### `src/lib/stripe.js`
+
 **Changes in Samia branch:** Created — `loadStripe()` with publishable key from env.
 **Changes in QA audit:** No changes.
 **Status:** Working. Stripe Elements render correctly.
 
 #### `src/App.jsx`
+
 **Route:** Router configuration + protected routes.
 **Changes in Samia branch:** Created routing structure with ProtectedRoute.
 **Changes in QA audit:**
+
 - Added `<Toaster>` provider from `react-hot-toast` (top-right, 2.5s auto-dismiss)
-**Status:** Working. All routes properly protected by role.
+  **Status:** Working. All routes properly protected by role.
 
 #### `src/main.jsx`
+
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** React entry point. No issues.
 
 #### `src/index.css`
+
 **Changes in Samia branch:** No changes.
 **Changes in QA audit:** No changes.
 **Status:** Tailwind + DaisyUI + custom styles. No issues.
@@ -520,11 +596,13 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 ### Static / Public Folder
 
 #### `public/placeholder.svg`
+
 **Changes in Samia branch:** Created — SVG placeholder for products without images.
 **Changes in QA audit:** No changes.
 **Status:** Used as fallback when `product.images` is empty.
 
 #### `public/placeholder.png`
+
 **Changes in Samia branch:** Created — empty file.
 **Changes in QA audit:** No changes.
 **Status:** Empty placeholder file.
@@ -535,38 +613,39 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 
 ### High Priority
 
-| # | Issue | Details | Suggested Fix |
-|---|-------|---------|---------------|
-| 1 | **Product images not displaying anywhere** | This is a multi-layer issue: (a) Seed products have `images: []` — no images were populated during SQL seeding, so all original demo products show placeholders. (b) Vendor-uploaded images: the upload UI is wired (`POST /suppliers/products/:id/images` with multipart `image` field) but after upload the `images` array in the database remains empty — the upload may be silently failing at the Supabase Storage level. (c) The `GET /suppliers/products` and `GET /admin/products` endpoints return raw storage paths instead of signed URLs, so even if images were stored, they wouldn't render on vendor/admin pages without the `resolveProductImages()` helper (which itself depends on the product being accessible via `GET /products/:id`). **Net result:** No product images display on any page — products page, product detail, cart, vendor portal, or admin panel all show placeholders. | Debug steps: (1) Open browser DevTools Console → try uploading an image → check for error messages. (2) Check Supabase Dashboard → Storage → verify `product-images` bucket exists. (3) Check backend terminal for storage errors during upload. (4) If bucket doesn't exist, run `npm run db:migrate` in backend to auto-create it. (5) If bucket exists but upload still fails, check Supabase service role key permissions. |
-| 2 | **Image resolution limited for pending products** | The `resolveProductImages()` helper fetches via `GET /products/:id` which only returns active products. Pending/rejected products can't have images resolved this way — vendor portal will show placeholders for non-active products even if images exist. | Backend fix needed: add signed URL resolution to `GET /suppliers/products` endpoint, OR add a dedicated image URL endpoint |
-| 3 | **Admin orders page not verified** | `AdminOrders.jsx` may have similar field name mismatches (snake_case vs camelCase) as were found in other pages. | Audit AdminOrders against backend `GET /admin/orders` response shape |
-| 4 | **Admin dashboard not verified** | `AdminDashboard.jsx` fetches from `GET /admin/dashboard` but response parsing not audited. | Audit against backend response |
+| #   | Issue                                             | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Suggested Fix                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **Product images not displaying anywhere**        | This is a multi-layer issue: (a) Seed products have `images: []` — no images were populated during SQL seeding, so all original demo products show placeholders. (b) Vendor-uploaded images: the upload UI is wired (`POST /suppliers/products/:id/images` with multipart `image` field) but after upload the `images` array in the database remains empty — the upload may be silently failing at the Supabase Storage level. (c) The `GET /suppliers/products` and `GET /admin/products` endpoints return raw storage paths instead of signed URLs, so even if images were stored, they wouldn't render on vendor/admin pages without the `resolveProductImages()` helper (which itself depends on the product being accessible via `GET /products/:id`). **Net result:** No product images display on any page — products page, product detail, cart, vendor portal, or admin panel all show placeholders. | Debug steps: (1) Open browser DevTools Console → try uploading an image → check for error messages. (2) Check Supabase Dashboard → Storage → verify `product-images` bucket exists. (3) Check backend terminal for storage errors during upload. (4) If bucket doesn't exist, run `npm run db:migrate` in backend to auto-create it. (5) If bucket exists but upload still fails, check Supabase service role key permissions. |
+| 2   | **Image resolution limited for pending products** | The `resolveProductImages()` helper fetches via `GET /products/:id` which only returns active products. Pending/rejected products can't have images resolved this way — vendor portal will show placeholders for non-active products even if images exist.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Backend fix needed: add signed URL resolution to `GET /suppliers/products` endpoint, OR add a dedicated image URL endpoint                                                                                                                                                                                                                                                                                                     |
+| 3   | **Admin orders page not verified**                | `AdminOrders.jsx` may have similar field name mismatches (snake_case vs camelCase) as were found in other pages.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Audit AdminOrders against backend `GET /admin/orders` response shape                                                                                                                                                                                                                                                                                                                                                           |
+| 4   | **Admin dashboard not verified**                  | `AdminDashboard.jsx` fetches from `GET /admin/dashboard` but response parsing not audited.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Audit against backend response                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ### Medium Priority
 
-| # | Issue | Details |
-|---|-------|---------|
-| 5 | **Forgot password flow not tested** | ForgotPasswordPage and ResetPasswordPage exist but API integration not verified |
-| 6 | **Email verification flow not tested** | EmailVerificationPage exists but not verified |
-| 7 | **Customer profile page not fully tested** | Field names may have mismatches similar to vendor settings |
-| 8 | **PayPal sandbox not tested** | PayPal payment creates order but sandbox redirect not verified end-to-end |
-| 9 | **Admin analytics not verified** | Multiple analytics endpoints called but response shapes not audited |
-| 10 | **Admin compliance page not verified** | Purpose and functionality unknown |
+| #   | Issue                                      | Details                                                                         |
+| --- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| 5   | **Forgot password flow not tested**        | ForgotPasswordPage and ResetPasswordPage exist but API integration not verified |
+| 6   | **Email verification flow not tested**     | EmailVerificationPage exists but not verified                                   |
+| 7   | **Customer profile page not fully tested** | Field names may have mismatches similar to vendor settings                      |
+| 8   | **PayPal sandbox not tested**              | PayPal payment creates order but sandbox redirect not verified end-to-end       |
+| 9   | **Admin analytics not verified**           | Multiple analytics endpoints called but response shapes not audited             |
+| 10  | **Admin compliance page not verified**     | Purpose and functionality unknown                                               |
 
 ### Low Priority
 
-| # | Issue | Details |
-|---|-------|---------|
-| 11 | **SupplierRegisterPage.jsx is orphan** | Not routed anywhere, likely legacy code |
-| 12 | **Unused variable warnings** | Multiple files have unused imports (React, icons, etc.) — cosmetic only |
-| 13 | **Demo mode hint** | Login page shows demo credentials when `VITE_DEMO_MODE=true` — should be disabled for production |
-| 14 | **Tax calculation hardcoded** | 8% tax rate is hardcoded in CartPage, CheckoutPage, PaymentPage — backend has configurable `TAX_RATE` env var |
+| #   | Issue                                  | Details                                                                                                       |
+| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 11  | **SupplierRegisterPage.jsx is orphan** | Not routed anywhere, likely legacy code                                                                       |
+| 12  | **Unused variable warnings**           | Multiple files have unused imports (React, icons, etc.) — cosmetic only                                       |
+| 13  | **Demo mode hint**                     | Login page shows demo credentials when `VITE_DEMO_MODE=true` — should be disabled for production              |
+| 14  | **Tax calculation hardcoded**          | 8% tax rate is hardcoded in CartPage, CheckoutPage, PaymentPage — backend has configurable `TAX_RATE` env var |
 
 ---
 
 ## 6. Manual Testing Checklist
 
 ### Authentication
+
 - [x] Customer registration
 - [x] Vendor registration
 - [x] Login (customer)
@@ -578,6 +657,7 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 - [x] Logout
 
 ### Customer Flow
+
 - [x] Browse products
 - [x] Search products
 - [x] Filter by category
@@ -595,6 +675,7 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 - [ ] Customer profile update
 
 ### Vendor Flow
+
 - [x] Access vendor portal (after role fix)
 - [x] View vendor dashboard
 - [x] View vendor products
@@ -608,6 +689,7 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 - [x] View/edit vendor settings
 
 ### Admin Flow
+
 - [x] Access admin panel
 - [x] Approve/reject users
 - [x] Approve/reject vendors
@@ -666,7 +748,6 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 
 **Toast Notifications** — Working. Shows success toast when adding items to cart.
 
-
 ### What's Wired Up But NOT Tested
 
 **PayPal Payment** — Code complete, not tested. Need to go through checkout, select PayPal, and see if it redirects to PayPal sandbox. Depends on valid PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in backend .env.
@@ -689,7 +770,6 @@ The Samia branch was created to integrate the APlus-frontend React app with the 
 
 **Admin Analytics** — Page exists, not tested. Revenue, trends, top products. May need field name fixes.
 
-
 ### What's NOT Working
 
 **Product Images — Not Working Anywhere**
@@ -705,7 +785,6 @@ This is a multi-layer problem:
 **To debug:** Open browser DevTools (F12) Console tab and try uploading an image from the vendor portal. Check if any error appears. Also check the Supabase Dashboard to verify the product-images storage bucket exists. If it doesn't exist, running npm run db:migrate in the backend should create it.
 
 **To fully fix:** The backend needs to return signed URLs from the supplier and admin product endpoints, the same way it already does for the customer endpoint.
-
 
 ### Pages With No Changes Made (Untouched)
 
@@ -729,9 +808,9 @@ This is a multi-layer problem:
 
 ---
 
-*Report generated during QA audit session on 2026-03-23.*
-*Frontend: APlus-frontend (branch: Samia)*
-*Backend: APlusMedDepot-Backend (read-only, no changes made)*
+_Report generated during QA audit session on 2026-03-23._
+_Frontend: APlus-frontend (branch: Samia)_
+_Backend: APlusMedDepot-Backend (read-only, no changes made)_
 
 ---
 
@@ -740,6 +819,7 @@ This is a multi-layer problem:
 ### Backend Update
 
 Backend was updated from `develop` branch. New commits pulled:
+
 - `#50` — normalize product categories with official list
 - `#51` — support comma-separated CORS origins
 - `#52` — sync users table when admin approves/suspends supplier
@@ -751,18 +831,22 @@ Backend was updated from `develop` branch. New commits pulled:
 ### Frontend Changes Made (20 files, +1157 / -418 lines)
 
 **src/api/client.js**
+
 - Added token refresh logic. On 401 response, automatically attempts to refresh the access token using the stored refresh token. If refresh succeeds, retries the original request. If refresh fails, clears auth and redirects to /login.
 
 **src/store/authStore.js**
+
 - Added vendor-specific fields to registration payload (taxId, businessAddress, businessPhone, website, yearsInBusiness, businessLicense, fdaRegistration, categories, position) — sent when registering as supplier.
 - Fixed logout to also clear refreshToken from localStorage.
 - Role checks now use 'supplier' (matching backend) instead of 'vendor'.
 
 **src/components/Navbar.jsx**
+
 - Added "Admin Dashboard" link in desktop nav for admin users.
 - Fixed user display name to use firstName/lastName from backend response.
 
 **src/pages/ProductDetailPage.jsx — Major rewrite**
+
 - Complete UI redesign to match provided reference screenshots.
 - Added supplier comparison feature: fetches all products and matches by name (case-insensitive) to find same product from different vendors.
 - Comparison box with radio-button supplier selection, "Best Price" and "Featured" badges, star ratings, stock counts.
@@ -777,6 +861,7 @@ Backend was updated from `develop` branch. New commits pulled:
 - Font consistency — font-display only on product title, everything else uses font-body (Inter).
 
 **src/pages/ProductsPage.jsx — Major rewrite**
+
 - Added filter reset button (RefreshCw icon) next to "Filters" heading. Appears only when any filter is active. Clears category, price range, stock filter, sort, and search.
 - Added dynamic categories from useCategories hook instead of hardcoded constants.
 - Added category color coding with CATEGORY_COLORS array.
@@ -784,6 +869,7 @@ Backend was updated from `develop` branch. New commits pulled:
 - Removed toast notification on add to cart.
 
 **src/pages/OrderHistoryPage.jsx**
+
 - Fixed response parsing: now checks data.orders (backend returns { orders: [...] }).
 - Orders now automatically fetch full details on page load (GET /orders/:id for each order) to show item names, quantities, prices, and shipping address inline.
 - Added "View Items" section showing product details, quantities, and line totals.
@@ -791,47 +877,58 @@ Backend was updated from `develop` branch. New commits pulled:
 - Invoice download uses full order details.
 
 **src/pages/CartPage.jsx**
+
 - Fixed "Proceed to Checkout" button — added flex layout so arrow icon sits inline with text instead of on a separate line.
 
 **src/pages/PaymentPage.jsx**
+
 - Net30 payment option commented out (intentional by user).
 - Stripe and PayPal payment methods remain active.
 - Payment flow: syncCartToBackend → createOrder → payment method specific logic.
 - Note: Payment was blocked by Supabase RLS policy on orders table. User fixed by disabling RLS on orders, order_items, and order_status_history tables via Supabase Dashboard.
 
 **src/pages/LoginPage.jsx**
+
 - Minor adjustments to login flow.
 
 **src/pages/RegisterPage.jsx**
+
 - Now uses useCategories hook for dynamic product categories in vendor registration.
 - After successful registration, redirects to /verify-email with email parameter.
 - Success message includes "Check your email for a verification code."
 - Added password strength validation matching backend requirements (uppercase, lowercase, number, special character).
 
 **src/pages/HomePage.jsx**
+
 - Reduced hardcoded category images.
 
 **src/components/AdminLayout.jsx**
+
 - Layout adjustments for admin panel.
 
 **src/pages/admin/AdminDashboard.jsx**
+
 - Dashboard stat adjustments.
 
 **src/pages/admin/AdminVendors.jsx**
+
 - Vendor management adjustments.
 
 **src/pages/vendor/VendorProducts.jsx**
+
 - Minor adjustments to vendor product management.
 
 **src/pages/SupplierRegisterPage.jsx**
+
 - Minor updates (orphan file, not routed).
 
 **src/utils/constants.js**
+
 - Updated category constants.
 
 **vite.config.js**
-- Dev server port configuration.
 
+- Dev server port configuration.
 
 ### Issues Found and Status
 
@@ -855,9 +952,9 @@ Commented out by user in PaymentPage.jsx.
 
 ---
 
-*Updated during QA session on 2026-03-27.*
-*Frontend: APlus-frontend (branch: Samia)*
-*Backend: APlusMedDepot-Backend (branch: develop, commit 54f07f2)*
+_Updated during QA session on 2026-03-27._
+_Frontend: APlus-frontend (branch: Samia)_
+_Backend: APlusMedDepot-Backend (branch: develop, commit 54f07f2)_
 
 ---
 
@@ -883,9 +980,9 @@ Commented out by user in PaymentPage.jsx.
 
 ---
 
-*Updated during QA session on 2026-03-31.*
-*Frontend: APlus-frontend (branch: Samia)*
-*Backend: APlusMedDepot-Backend (branch: develop, commit c0f35c6)*
+_Updated during QA session on 2026-03-31._
+_Frontend: APlus-frontend (branch: Samia)_
+_Backend: APlusMedDepot-Backend (branch: develop, commit c0f35c6)_
 
 ---
 
@@ -909,5 +1006,95 @@ Commented out by user in PaymentPage.jsx.
 
 ---
 
-*Updated on 2026-04-01.*
+_Updated on 2026-04-01._
+_Frontend: APlus-frontend (branch: Samia)_
+
+---
+
+## Update — 2026-04-03
+
+### Chatbot Integration
+
+**Floating chatbot widget integrated** — New ChatWidget component (src/components/ChatWidget.jsx) connected to n8n webhook. Features: pill-shaped "Chat Now" button with APMD logo (bottom-right), expandable chat window with navy header, bot/user message bubbles, typing indicator, session persistence via localStorage UUID, "New Chat" button, Escape to close, mobile responsive (full-width on small screens). Bot responses render newlines properly and URLs are clickable links that open in new tabs.
+
+**Chatbot response parsing fixed** — The webhook returns plain text (not JSON), so response parsing was updated to handle both formats.
+
+### Product Detail Page
+
+**Supplier comparison fuzzy matching** — Comparison section now uses fuzzy name matching instead of exact. Strips parentheses content and trailing numbers before comparing (e.g., "Surgical Face Mask", "Surgical Face Mask (black)", "Surgical Face Mask (50 pcs)" all group together).
+
+**Comparison navigation** — Clicking a different supplier's row in the comparison section navigates directly to that product's detail page instead of just selecting a radio button. The current product's supplier is always the default selection.
+
+**Multi-image gallery** — Products with multiple images now show a thumbnail row below the main image. Clicking a thumbnail switches the main image. Selected thumbnail has a red border highlight.
+
+**Image sizing** — Product grid uses aspect-[4/3] with object-cover. Product detail uses aspect-square with object-cover. Consistent across all products.
+
+**Specifications merged into Key Features** — Removed the standalone Specifications section. Spec data (excluding fda_status) is now shown as bullet points under Key Features.
+
+**Description always visible** — Shows "No description available." when empty instead of hiding the section.
+
+**Key Features always visible** — Shows "No key features listed." when empty instead of hiding the section.
+
+**Single supplier card restyled** — Now matches the comparison section styling (same pink background, red border, rounded corners).
+
+### Products Page
+
+**Server-side sorting** — Sort dropdown now re-fetches from backend with proper sort params (sortBy + sortOrder) instead of sorting client-side on loaded products only. Options: Newest First, Price Low to High, Price High to Low, Name A-Z.
+
+**Category counts from backend** — Each category in the sidebar shows accurate product counts fetched via pagination.total from the backend (one lightweight request per category, run in parallel on page load).
+
+**Homepage category filtering** — ProductsPage reads ?category= URL param from homepage category links and pre-selects that filter.
+
+**Filter reset icon** — Refresh icon next to "Filters" heading clears all filters when clicked.
+
+**All products loaded** — Removed 20-product pagination limit. All products fetched at once (backend max 100 per request). Load More button removed. Note: when product count exceeds 100, pagination or a backend limit increase will be needed.
+
+### Admin Panel
+
+**Admin products pagination** — Reverted from limit:100 to default pagination. Admin can now see all products by scrolling through pages.
+
+### Other Fixes
+
+**Vendor registration fields** — Removed businessLicense from registration payload (database column doesn't exist). Kept companyName, taxId, businessAddress, yearsInBusiness, categories.
+
+**Add to Cart no longer redirects** — Stays on product detail page after adding to cart.
+
+**Cart button alignment** — "Proceed to Checkout" button icon now inline with text.
+
+**Checkout button alignment** — "Continue to Payment" button icon now inline with text.
+
+**Navbar logo updated** — APMD_LOGO.png icon + "APlusMedDepot" text (APlus in red, MedDepot in blue). Logo size increased to h-14 for better proportion.
+
+**Favicon updated** — Browser tab now uses APMD_FULL_LOGO.jpg.
+
+**Homepage category images** — Fixed 2 broken Unsplash URLs. Expanded from 4 to 8 unique images.
+
+**Customer profile recent orders** — Fixed response parsing and now fetches full order details. Shows 2 most recent orders with product names, quantities, and prices.
+
+### Known Issues (Not Frontend)
+
+**Chatbot "Book a Call"** — Returns CALENDAR_LINK_PLACEHOLDER instead of actual URL. Needs to be fixed in the n8n workflow.
+
+**Turnstile CAPTCHA** — Still showing Error 110200. Domains need to be added in Cloudflare Dashboard.
+
+**Backend product limit** — Max 100 products per API request. Will need increasing as catalog grows.
+
+**Admin product deactivation** — No endpoint to set a product to "inactive" from admin side. Backend feature request.
+
+---
+
+_Updated on 2026-04-03._
+_Frontend: APlus-frontend (branch: Samia)_
+
+---
+
+## Update — 2026-04-05
+
+**Homepage category images switched to ImgBB** — Local images in public/home_category_img/ were not loading despite files being valid. Switched all 8 category images to externally hosted ImgBB URLs for reliable loading. Each category now has its own dedicated image mapped by name (Wound Care, Vascular Access, Incontinence Care, Gloves, Nursing Care Supplies, Enteral Feeding Tubes, Skin Biologics, Advanced Wound Care).
+
+**Homepage banner reverted** — Trial banner image was tested but reverted back to the original Unsplash image for now.
+
+---
+
+*Updated on 2026-04-05.*
 *Frontend: APlus-frontend (branch: Samia)*
