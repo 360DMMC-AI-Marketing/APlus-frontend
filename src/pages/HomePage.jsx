@@ -98,7 +98,7 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="font-display text-4xl text-secondary mb-4">
-              Why Choose APlusMed?
+              Why Choose APMD?
             </h2>
             <p className="text-gray-600 text-lg">
               Your trusted partner in medical supply management
@@ -181,7 +181,7 @@ const HomePage = () => {
             Ready to Order Medical Supplies?
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Join hundreds of healthcare facilities that trust APlusMed for their
+            Join hundreds of healthcare facilities that trust APMD for their
             medical supply needs.
           </p>
           {!user && (

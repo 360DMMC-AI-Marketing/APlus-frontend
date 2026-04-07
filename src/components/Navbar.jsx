@@ -85,7 +85,7 @@ const Navbar = () => {
                 to="/register"
                 className="text-primary hover:text-primary/80 font-semibold transition-colors flex items-center gap-1"
               >
-                <Store className="w-4 h-4" /> Sell on APlusMed
+                <Store className="w-4 h-4" /> Sell on APMD
               </Link>
             )}
           </div>
