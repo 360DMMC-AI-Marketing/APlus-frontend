@@ -39,7 +39,7 @@ const SupplierRegisterPage = () => {
               <Store className="w-8 h-8 text-white" />
             </div>
             <h1 className="font-display text-3xl text-neutral mb-2">Become a Supplier</h1>
-            <p className="text-gray-600">Join APlusMed's marketplace and start selling medical supplies</p>
+            <p className="text-gray-600">Join APMD's marketplace and start selling medical supplies</p>
           </div>
 
           {/* Success Message */}
