@@ -67,7 +67,7 @@ const HomePage = () => {
         >
           <SwiperSlide>
             <img
-              src="/flippedBannerimg.jpg"
+              src="/BannerAPMD.png"
               alt="APMD Medical Distribution Network"
               className="w-full h-full object-cover"
             />
