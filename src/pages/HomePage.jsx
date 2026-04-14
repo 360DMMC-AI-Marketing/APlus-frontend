@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Shield, Truck, Clock, Star, Package } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useCategories } from "../hooks/useCategories";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, Pagination, EffectFade } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/effect-fade";
 
 const HomePage = () => {
   const { user } = useAuthStore();
@@ -50,16 +55,41 @@ const HomePage = () => {
     <div className="bg-white">
       {/* Hero Section - Full background banner */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="/flippedBannerimg.jpg"
-            alt="APMD Medical Distribution Network"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 from-10% via-blue-950/40 via-35% to-transparent to-60%" />
-        </div>
+        <Swiper
+          modules={[Autoplay, Pagination, EffectFade]}
+          effect="fade"
+          fadeEffect={{ crossFade: true }}
+          autoplay={{ delay: 5000, disableOnInteraction: false }}
+          speed={1500}
+          pagination={{ clickable: true }}
+          loop={true}
+          className="absolute inset-0 w-full h-full"
+        >
+          <SwiperSlide>
+            <img
+              src="/BannerAPMD.png"
+              alt="APMD Medical Distribution Network"
+              className="w-full h-full object-cover"
+            />
+          </SwiperSlide>
+          <SwiperSlide>
+            <img
+              src="/slider02.jpg"
+              alt="Medical Supplies"
+              className="w-full h-full object-cover"
+            />
+          </SwiperSlide>
+          <SwiperSlide>
+            <img
+              src="/slide03.jpg"
+              alt="Healthcare Equipment"
+              className="w-full h-full object-cover"
+            />
+          </SwiperSlide>
+        </Swiper>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 from-10% via-blue-950/40 via-35% to-transparent to-60% pointer-events-none z-10" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
           <div className="max-w-xl animate-fade-in">
             <h1 className="font-display text-5xl md:text-6xl text-white mb-6 leading-tight">
               Professional{" "}
