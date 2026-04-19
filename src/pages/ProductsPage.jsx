@@ -380,9 +380,9 @@ const ProductsPage = () => {
                       </Link>
 
                       <div className="p-4 flex flex-col flex-1">
-                        <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded mb-1 w-fit">
+                        {/* <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded mb-1 w-fit">
                           SAMPLE - Not For Purchase
-                        </span>
+                        </span> */}
                         <Link to={`/products/${product.id}`}>
                           <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-1 hover:text-primary transition-colors line-clamp-2">
                             {product.name}

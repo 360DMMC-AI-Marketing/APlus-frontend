@@ -66,6 +66,10 @@ export async function getSupplierOrders(params = {}) {
   return apiClient.get("/suppliers/me/orders", params);
 }
 
+export async function getSupplierOrderById(id) {
+  return apiClient(`/suppliers/me/orders/${id}`);
+}
+
 export async function getSupplierOrderStats() {
   return apiClient("/suppliers/me/orders/stats");
 }
