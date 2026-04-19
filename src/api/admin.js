@@ -14,6 +14,10 @@ export async function getAdminPendingUserCount() {
   return apiClient("/admin/users/pending-count");
 }
 
+export async function getAdminUserById(id) {
+  return apiClient(`/admin/users/${id}`);
+}
+
 export async function approveUser(id) {
   return apiClient.put(`/admin/users/${id}/approve`);
 }
@@ -25,6 +29,10 @@ export async function rejectUser(id) {
 // ── Orders ──
 export async function getAdminOrders(params = {}) {
   return apiClient.get("/admin/orders", params);
+}
+
+export async function getAdminOrderById(id) {
+  return apiClient(`/admin/orders/${id}`);
 }
 
 export async function getAdminOrderStatusCounts() {

@@ -30,15 +30,20 @@ const VendorOrders = () => {
 
   const statusOptions = [
     { value: 'all', label: 'All Orders' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'shipped', label: 'Shipped' },
+    { value: 'pending_payment', label: 'Pending Payment' },
+    { value: 'payment_confirmed', label: 'Confirmed' },
+    { value: 'awaiting_fulfillment', label: 'Awaiting Fulfillment' },
+    { value: 'partially_shipped', label: 'Partially Shipped' },
+    { value: 'fully_shipped', label: 'Shipped' },
     { value: 'delivered', label: 'Delivered' },
   ];
 
   const statusStyle = (status) => {
     if (status === 'delivered') return 'bg-green-100 text-green-800';
-    if (status === 'in_transit' || status === 'shipped') return 'bg-blue-100 text-blue-800';
-    return 'bg-yellow-100 text-yellow-800';
+    if (status === 'fully_shipped' || status === 'partially_shipped') return 'bg-blue-100 text-blue-800';
+    if (status === 'payment_confirmed' || status === 'awaiting_fulfillment') return 'bg-yellow-100 text-yellow-800';
+    if (status === 'cancelled' || status === 'refunded') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
   // Backend status values: processing → shipped → delivered
@@ -161,7 +166,7 @@ const VendorOrders = () => {
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold text-neutral">{orderId}</h3>
                       <span className={`badge-status text-xs ${statusStyle(order.status)}`}>
-                        {(order.status || '').replace('_', ' ')}
+                        {(order.status || '').replace(/_/g, ' ')}
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">

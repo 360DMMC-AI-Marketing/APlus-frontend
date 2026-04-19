@@ -43,7 +43,7 @@ const AdminProducts = () => {
 
   const fetchProducts = async () => {
     try {
-      const data = await getAdminProducts();
+      const data = await getAdminProducts({ limit: 100 });
       const list = data.products || data.data || data;
       const prods = Array.isArray(list) ? list : [];
 

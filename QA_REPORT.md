@@ -1098,3 +1098,52 @@ _Frontend: APlus-frontend (branch: Samia)_
 
 *Updated on 2026-04-05.*
 *Frontend: APlus-frontend (branch: Samia)*
+
+---
+
+## Update — 2026-04-19
+
+### Admin Panel Fixes
+
+**Admin Orders page fixed** — Four bugs resolved: (1) Date column showed "Invalid Date" — fixed by reading `createdAt` (camelCase) instead of `created_at`. (2) Customer name was blank — fixed by reading `customerName` and `customerEmail` from backend response. (3) Total showed $0.00 — fixed by reading `totalAmount` (camelCase). (4) Eye icon now works — opens a modal showing full order details including status summary, customer info, shipping address, order items table, and status history. Added `getAdminOrderById` API function. Status filter dropdown updated with actual backend status values.
+
+**Admin Products page** — Increased fetch limit to 100 so all products appear in the list and stats cards show correct counts.
+
+**Admin Orders page** — Increased fetch limit to 100 to show all orders.
+
+**Admin Analytics page rewritten** — Fixed all NaN values in KPI cards by reading correct camelCase field names from backend response (`current.totalSales`, `current.totalCommission`, `current.orderCount`). Products count now uses `pagination.total` from a lightweight API call instead of counting loaded products. Revenue trend chart fixed to read `date`/`revenue`/`orders` from backend. "Monthly Site Visitors" replaced with "Orders Trend" (backend doesn't track visitors). Top Products section now reads `productName`/`totalRevenue`/`totalSold`/`supplierName`. Category breakdown now fetches from dedicated `GET /admin/analytics/revenue/categories` endpoint showing actual sales data per category, merged with the full category list so all 11 categories are visible even with zero activity. Period selector maps UI values (7d/30d/90d/all) to backend values (week/month/quarter/all). Vendor performance table reads correct camelCase fields (`supplierName`/`totalSales`/`platformCommission`).
+
+**Admin Users page fixed** — User name and date fields updated to read camelCase (`firstName`/`lastName`/`createdAt`). "Company" column replaced with "Role" column showing colored badges. Eye icon now works — opens a modal showing user details, contact info, supplier details (business name, tax ID, commission rate, balance) for vendors, and customer stats (total orders, total spent) for customers. Added `getAdminUserById` API function. Increased fetch limit to 100.
+
+### Vendor Portal Fixes
+
+**Vendor Analytics page rewritten** — Now fetches from `getSupplierDashboard()` for accurate KPIs (revenueThisMonth, ordersThisMonth, activeProducts, averageOrderValue). Revenue trend reads correct backend fields (`date`/`revenue`/`orderCount`). Category breakdown shows all 11 categories merged with vendor's product data. Commission summary shows accurate values from backend.
+
+**Vendor Orders filters fixed** — Filter buttons updated to match actual backend order status values (`pending_payment`, `payment_confirmed`, `awaiting_fulfillment`, `partially_shipped`, `fully_shipped`, `delivered`). Status badge colors properly mapped. Status text replaces all underscores. Note: Order status update (fulfillment) feature was attempted but reverted due to complexity with the backend's sub-order/order-item relationship — needs further investigation.
+
+### Branding
+
+**"APlusMed" replaced with "APMD"** — Updated in 4 places: HomePage ("Why Choose APMD?", "...trust APMD for their..."), Navbar ("Sell on APMD"), SupplierRegisterPage ("Join APMD's marketplace"). Logos and links left unchanged.
+
+**Homepage banner** — Switched to full-background banner using `BannerAPMD.png` with left-side dark gradient overlay. Text overlay on left side. Added Swiper slider with 3 slides (BannerAPMD.png, slider02.jpg, slide03.jpg) using fade effect, 5-second delay, 1.5-second transition speed, pagination dots.
+
+**Footer phone number** — Updated to +844-722-2763.
+
+**SAMPLE badge** — Commented out the "SAMPLE - Not For Purchase" badge on product cards.
+
+### Products Page
+
+**All products loaded** — Removed 20-product limit. All products fetched at once (backend max 100). Load More button removed. Server-side sorting retained.
+
+**Category counts from backend** — Each category shows accurate count via `pagination.total` from lightweight per-category API calls.
+
+### Known Issues (Remaining)
+
+**Vendor order fulfillment** — Status update button does not work. The backend's list endpoint returns sub-orders without order_item IDs. The fulfillment update endpoint requires order_item IDs. Fetching details for each order to get item IDs causes rate limiting. Needs a backend solution (either return item IDs in the list endpoint or provide a batch fulfillment update endpoint).
+
+**Backend product limit** — Max 100 products per API request. Will need increasing as catalog grows beyond 100 products.
+
+---
+
+*Updated on 2026-04-19.*
+*Frontend: APlus-frontend (branch: Samia)*
